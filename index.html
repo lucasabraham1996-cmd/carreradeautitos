@@ -26,13 +26,10 @@
 <body>
     <div id="root"></div>
 
-    <!-- Dependencias obligatorias para que React y Lucide se carguen en orden -->
-    <!-- React and ReactDOM CDN -->
+    <!-- Dependencias obligatorias para que React se carguen en orden -->
+    <!-- React and ReactDOM CDN (DEBE cargar primero) -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
-    <!-- Lucide Icons CDN -->
-    <script src="https://unpkg.com/lucide-react@latest"></script>
     
     <!-- Babel for JSX compilation (Debe ir antes del código de la aplicación) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -40,20 +37,8 @@
 
     <script type="text/babel">
         // Desestructuración de React para uso global
-        const { useState, useEffect } = window.React || {};
+        const { useState, useEffect, useRef } = window.React || {};
         
-        // Componente Icono Dinámico (Resuelve el error de forwardRef)
-        const Icon = ({ name, size = 24, fill = 'none', className = '' }) => {
-            const LucideIcon = window.LucideReact ? window.LucideReact[name] : null;
-            if (!LucideIcon) {
-                // Fallback si el ícono no se encuentra
-                return <span className={"inline-block " + className} style={{ width: size, height: size, lineHeight: `${size}px` }}>?</span>;
-            }
-            // Los íconos de Lucide son componentes React, se usan con createElement
-            return React.createElement(LucideIcon, { size, fill, className });
-        };
-
-
         // --- DATA Y CONSTANTES ---
 
         const ICON_URLS = {
@@ -66,7 +51,35 @@
           CHEVROLET: "https://cdn-icons-png.flaticon.com/128/16178/16178046.png",
           FORD: "https://listcarbrands.com/wp-content/uploads/2016/03/Logo-Ford-1.png", 
           HOT_WHEELS: "https://cdn.freebiesupply.com/logos/large/2x/hot-wheels-5-logo-black-and-white.png",
+          FIAT: "https://cdn-icons-png.flaticon.com/128/16178/16178065.png",
+          CITROEN: "https://cdn-icons-png.flaticon.com/128/16178/16178051.png",
+          HONDA: "https://cdn-icons-png.flaticon.com/128/16178/16178071.png",
         };
+        
+        const COMMON_BRANDS = [
+            { name: 'PEUGEOT', icon: ICON_URLS.PEUGEOT },
+            { name: 'RENAULT', icon: ICON_URLS.RENAULT },
+            { name: 'VW', icon: ICON_URLS.VW },
+            { name: 'CHEVROLET', icon: ICON_URLS.CHEVROLET },
+            { name: 'FORD', icon: ICON_URLS.FORD },
+            { name: 'FIAT', icon: ICON_URLS.FIAT },
+            { name: 'CITROËN', icon: ICON_URLS.CITROEN },
+            { name: 'TOYOTA', icon: ICON_URLS.TOYOTA },
+            { name: 'HONDA', icon: ICON_URLS.HONDA },
+            { name: 'OTROS', icon: '❓' },
+        ];
+        
+        const COMMON_COLORS = [
+            { name: 'BLANCO', color: '#E0E0E0' },
+            { name: 'NEGRO', color: '#333333' },
+            { name: 'GRIS/PLATA', color: '#B0B0B0' },
+            { name: 'ROJO', color: '#CC0000' },
+            { name: 'AZUL', color: '#0000FF' },
+            { name: 'VERDE', color: '#008000' },
+            { name: 'AMARILLO', color: '#FFFF00' },
+            { name: 'OTRO', color: '#800080' },
+        ];
+
 
         const INITIAL_CARS = [
           { id: 1, name: 'Peugeot 206', detail: '(Rojo #1)', color: '#E74C3C', brandIconType: ICON_URLS.PEUGEOT, wins: 0, draws: 0, losses: 0, matches: 0, tier: 3, titles: 0 },
@@ -104,14 +117,69 @@
           const [winner, setWinner] = useState(null);
           const [isDraw, setIsDraw] = useState(false);
           const [cupChampion, setCupChampion] = useState(null); 
+          
+          // Estado del Contador Callejero
+          const [streetFilterType, setStreetFilterType] = useState('brand'); // 'brand', 'color' or 'custom'
+          const [streetCounts, setStreetCounts] = useState({});
+          const [customModels, setCustomModels] = useState([]);
+          const newCustomRef = useRef(null); // Ref para el nuevo modelo custom
 
-          const isLoading = false; // No hay carga asíncrona
+          // Inicializar streetCounts y customModels al montar
+          useEffect(() => {
+              const initialCounts = {};
+              COMMON_BRANDS.forEach(b => initialCounts[b.name] = 0);
+              COMMON_COLORS.forEach(c => initialCounts[c.name] = 0);
+              setStreetCounts(initialCounts);
+              // Inicializar modelos custom
+              setCustomModels([{ id: 1, name: 'Fiat Cronos', count: 0 }, { id: 2, name: 'VW Gol', count: 0 }]);
+          }, []);
+
+          const incrementStreetCount = (key) => {
+              // Manejo de contadores fijos (Marca/Color)
+              if (streetFilterType !== 'custom') {
+                  setStreetCounts(prev => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
+              } else {
+                  // Manejo de contadores custom
+                  setCustomModels(prevModels => prevModels.map(model => 
+                      model.name === key ? { ...model, count: model.count + 1 } : model
+                  ));
+              }
+          };
+          
+          const addCustomModel = () => {
+              const name = newCustomRef.current.value.trim();
+              if (name && !customModels.find(m => m.name === name)) {
+                  setCustomModels(prevModels => [...prevModels, { id: Date.now(), name, count: 0 }]);
+                  newCustomRef.current.value = '';
+              }
+          };
+          
+          const deleteCustomModel = (id) => {
+              setCustomModels(prevModels => prevModels.filter(m => m.id !== id));
+          }
+          
+          const resetStreetCounts = () => {
+              // Resetear contadores fijos
+              const initialCounts = {};
+              COMMON_BRANDS.forEach(b => initialCounts[b.name] = 0);
+              COMMON_COLORS.forEach(c => initialCounts[c.name] = 0);
+              setStreetCounts(initialCounts);
+              
+              // Resetear contadores custom (solo la cuenta)
+              setCustomModels(prevModels => prevModels.map(m => ({ ...m, count: 0 })));
+          }
+
 
           // --- HELPERS ---
           const getPoints = (c) => (c.wins * 3) + (c.draws * 1);
           const getFullName = (car) => `${car.name} ${car.detail || ''}`.trim();
 
-          // --- COMPONENTS ---
+          // --- COMPONENTES VISUALES ---
+          // Reemplazo de <PhIcon name="X" /> por emojis o caracteres
+          const Icon = ({ char, size = 16, className = '' }) => (
+            <span className={className} style={{ fontSize: `${size}px`, lineHeight: 1 }}>{char}</span>
+          );
+          
           const CarBadge = ({ car, size = 'sm' }) => {
             const sizeClasses = size === 'lg' ? 'w-10 h-10 p-2' : size === 'xs' ? 'w-6 h-6 p-0.5' : 'w-8 h-8 p-1'; 
             const isUrl = car?.brandIconType && car.brandIconType.startsWith('http');
@@ -396,7 +464,7 @@
                           className="flex-1 border rounded-full px-4 py-2 text-sm shadow-inner"
                           onKeyPress={(e) => e.key === 'Enter' && addCar()}
                         />
-                        <button onClick={addCar} className="bg-red-600 text-white p-2 rounded-full shadow hover:bg-red-700 active:scale-95"><Icon name="Plus" size={20}/></button>
+                        <button onClick={addCar} className="bg-red-600 text-white p-2 rounded-full shadow hover:bg-red-700 active:scale-95"><Icon char="➕" size={20}/></button>
                      </div>
 
                      {/* CARD */}
@@ -417,32 +485,118 @@
                              <div className="w-full bg-gray-50 rounded-xl p-4 space-y-4">
                                  {/* Color */}
                                  <div className="flex justify-between items-center">
-                                     <span className="flex items-center gap-2 text-sm font-bold text-gray-600"><Icon name="Palette" size={16}/> Color</span>
+                                     <span className="flex items-center gap-2 text-sm font-bold text-gray-600">🎨 Color</span>
                                      <input type="color" value={car.color} onChange={(e) => updateCar(car.id, 'color', e.target.value)} className="w-8 h-8 rounded-full overflow-hidden border-2 border-white shadow cursor-pointer"/>
                                  </div>
                                  {/* Stars */}
                                  <div className="flex justify-between items-center">
-                                     <span className="flex items-center gap-2 text-sm font-bold text-gray-600"><Icon name="Shield" size={16}/> Nivel</span>
-                                     <div className="flex">{[1,2,3,4].map(s => <button key={s} onClick={()=>updateCar(car.id,'tier',s)}><Icon name="Star" size={20} className={car.tier >= s ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}/></button>)}</div>
+                                     <span className="flex items-center gap-2 text-sm font-bold text-gray-600">🛡️ Nivel</span>
+                                     <div className="flex">{[1,2,3,4].map(s => <button key={s} onClick={()=>updateCar(car.id,'tier',s)}><Icon char="⭐" size={20} className={car.tier >= s ? 'text-yellow-400' : 'text-gray-300'}/></button>)}</div>
                                  </div>
                                  {/* Titles */}
                                  <div className="flex justify-between items-center border-t pt-2">
-                                     <span className="flex items-center gap-2 text-sm font-bold text-gray-600"><Icon name="Crown" size={16}/> Títulos</span>
+                                     <span className="flex items-center gap-2 text-sm font-bold text-gray-600">👑 Títulos</span>
                                      <span className="text-xl font-black text-yellow-600">{car.titles}</span>
                                  </div>
                              </div>
                          </div>
 
                          {/* Delete */}
-                         <button onClick={() => deleteCar(car.id)} className="absolute top-4 right-4 text-gray-300 hover:text-red-500 p-2"><Icon name="Trash2" size={20}/></button>
+                         <button onClick={() => deleteCar(car.id)} className="absolute top-4 right-4 text-gray-300 hover:text-red-500 p-2"><Icon char="🗑️" size={20}/></button>
                      </div>
 
                      {/* Nav */}
                      <div className="flex items-center gap-8 mt-6">
-                         <button onClick={() => navigate(-1)} className="p-4 bg-white rounded-full shadow-lg text-gray-700 hover:text-red-600 active:scale-90 transition-all"><Icon name="ChevronLeft" size={32}/></button>
+                         <button onClick={() => navigate(-1)} className="p-4 bg-white rounded-full shadow-lg text-gray-700 hover:text-red-600 active:scale-90 transition-all"><Icon char="◀️" size={32}/></button>
                          <span className="font-mono font-bold text-gray-400">{garageIndex + 1} / {cars.length}</span>
-                         <button onClick={() => navigate(1)} className="p-4 bg-white rounded-full shadow-lg text-gray-700 hover:text-red-600 active:scale-90 transition-all"><Icon name="ChevronRight" size={32}/></button>
+                         <button onClick={() => navigate(1)} className="p-4 bg-white rounded-full shadow-lg text-gray-700 hover:text-red-600 active:scale-90 transition-all"><Icon char="▶️" size={32}/></button>
                      </div>
+                </div>
+            );
+          };
+
+          const StreetCounterView = () => {
+            const currentItems = streetFilterType === 'brand' ? COMMON_BRANDS : streetFilterType === 'color' ? COMMON_COLORS : customModels;
+            const totalCount = streetFilterType !== 'custom'
+                ? Object.values(streetCounts).reduce((sum, count) => sum + count, 0)
+                : customModels.reduce((sum, model) => sum + model.count, 0);
+
+            const handleFilterChange = (type) => {
+                setStreetFilterType(type);
+            }
+            
+            const renderItem = (item) => {
+                const count = streetFilterType === 'custom' ? item.count : streetCounts[item.name] || 0;
+                const key = item.name;
+
+                return (
+                    <div key={key} className="flex flex-col items-center p-3 bg-gray-50 rounded-xl border border-gray-200">
+                        <div className="flex items-center justify-between w-full mb-2">
+                            <span className="text-sm font-bold text-gray-700 flex items-center gap-2 overflow-hidden whitespace-nowrap">
+                                {streetFilterType === 'brand' ? 
+                                    (item.icon.startsWith('http') ? <img src={item.icon} alt={item.name} className="w-4 h-4 object-contain" /> : item.icon) 
+                                    : streetFilterType === 'color' ?
+                                        <span className="w-4 h-4 rounded-full border border-gray-400 inline-block" style={{ backgroundColor: item.color }}></span>
+                                    : <Icon char="🚗" size={16} /> // Icono para modelos custom
+                                }
+                                {item.name}
+                            </span>
+                            <span className="text-2xl font-black text-red-600">{count}</span>
+                        </div>
+                        <div className="w-full flex gap-2">
+                            <button
+                                onClick={() => incrementStreetCount(key)}
+                                className="flex-1 bg-green-500 text-white py-2 rounded-full font-bold shadow hover:bg-green-600 active:scale-95 transition-transform"
+                            >
+                                ¡VISTO! <Icon char="➕" size={16} className="inline ml-1" />
+                            </button>
+                            {streetFilterType === 'custom' && (
+                                <button
+                                    onClick={() => deleteCustomModel(item.id)}
+                                    className="p-2 bg-red-400 text-white rounded-full shadow hover:bg-red-500 active:scale-95"
+                                >
+                                    <Icon char="🗑️" size={16} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="p-4 bg-white rounded-2xl shadow border border-gray-200 animate-fade-in">
+                    <h2 className="font-bold text-gray-700 mb-4 flex items-center gap-2"><Icon char="🗺️" size={20} className="text-red-600"/> Contador Callejero</h2>
+                    
+                    <div className="flex justify-between items-center mb-4 pb-4 border-b">
+                        <div className="flex flex-wrap gap-2 bg-gray-100 p-1 rounded-full">
+                            <button onClick={() => handleFilterChange('brand')} className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${streetFilterType === 'brand' ? 'bg-red-600 text-white shadow' : 'text-gray-600'}`}>Por Marca</button>
+                            <button onClick={() => handleFilterChange('color')} className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${streetFilterType === 'color' ? 'bg-red-600 text-white shadow' : 'text-gray-600'}`}>Por Color</button>
+                            <button onClick={() => handleFilterChange('custom')} className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${streetFilterType === 'custom' ? 'bg-red-600 text-white shadow' : 'text-gray-600'}`}>Personalizado</button>
+                        </div>
+                        <div className="text-right">
+                             <p className="text-xl font-black text-gray-800 leading-none">{totalCount}</p>
+                             <p className="text-xs text-gray-500">Total Contado</p>
+                        </div>
+                    </div>
+                    
+                    {/* Input para modelos personalizados */}
+                    {streetFilterType === 'custom' && (
+                        <div className="flex gap-2 w-full mb-6">
+                            <input 
+                              ref={newCustomRef}
+                              placeholder="Modelo/Marca a contar (ej: Ford Ka)" 
+                              className="flex-1 border rounded-full px-4 py-2 text-sm shadow-inner"
+                              onKeyPress={(e) => e.key === 'Enter' && addCustomModel()}
+                            />
+                            <button onClick={addCustomModel} className="bg-red-600 text-white p-2 rounded-full shadow hover:bg-red-700 active:scale-95"><Icon char="➕" size={20}/></button>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                        {currentItems.map(renderItem)}
+                    </div>
+
+                    <button onClick={resetStreetCounts} className="mt-4 text-xs text-red-400 underline w-full text-center">Resetear Contador</button>
                 </div>
             );
           };
@@ -480,20 +634,21 @@
                 <header className="bg-gradient-to-br from-red-600 to-red-800 text-white p-4 shadow-xl sticky top-0 z-30 flex items-center justify-between">
                    <div className="flex items-center gap-3">
                        <div className="bg-white rounded-full p-1 shadow-lg">
-                           <img src={ICON_URLS.HOT_WHEELS} alt="HW" className="w-16 h-16 object-contain filter drop-shadow-sm" /> 
+                           <img src={ICON_URLS.HOT_WHEELS} alt="HW" className="w-20 h-20 object-contain filter drop-shadow-sm" /> 
                        </div>
                        <div>
                            <h1 className="text-2xl font-black italic tracking-tighter leading-none">TORNEO</h1>
                            <p className="text-xs font-medium opacity-80 tracking-widest">DE AUTITOS</p>
                        </div>
                    </div>
-                   {gameMode !== 'free' && <div className="text-xs bg-black/20 px-2 py-1 rounded font-mono">{schedule.flat().filter(m=>m.played).length} PJ</div>}
+                   {gameMode !== 'free' && <div className="text-xs bg-black/20 px-2 py-1 rounded font-mono">PJ: {schedule.flat().filter(m=>m.played).length}</div>}
                 </header>
 
                 <main className="flex-1 p-4 overflow-y-auto bg-gray-50">
                   
-                  {/* --- GARAGE (AHORA PRESENTACIÓN) --- */}
+                  {/* --- VISTAS --- */}
                   {view === 'garage' && <GarageView />}
+                  {view === 'street-counter' && <StreetCounterView />}
 
                   {/* --- ARENA --- */}
                   {view === 'arena' && (
@@ -502,7 +657,7 @@
                          {cupChampion && (
                              <div className="bg-gradient-to-b from-yellow-100 to-white border-4 border-yellow-400 p-6 rounded-3xl text-center shadow-2xl mb-6 relative overflow-hidden">
                                 <div className="absolute inset-0 bg-yellow-400 opacity-10 animate-pulse"></div>
-                                <Icon name="Crown" size={64} className="mx-auto text-yellow-500 mb-2 drop-shadow-md relative z-10" />
+                                <Icon char="👑" size={64} className="mx-auto text-yellow-500 mb-2 drop-shadow-md relative z-10" />
                                 <h2 className="text-2xl font-black text-yellow-900 relative z-10">¡CAMPEÓN!</h2>
                                 <p className="text-4xl font-black text-gray-800 my-2 relative z-10">{cupChampion.name}</p>
                                 <button onClick={() => setCupChampion(null)} className="mt-4 px-6 py-2 bg-yellow-500 text-white font-bold rounded-full shadow hover:bg-yellow-600 relative z-10">Cerrar</button>
@@ -512,15 +667,15 @@
                          {/* Selector Modes */}
                          {gameMode === 'free' && !duel.car1 && !cupChampion && (
                              <div className="grid grid-cols-2 gap-3 mb-4">
-                                <button onClick={startLeague} className="bg-blue-600 text-white p-4 rounded-2xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 flex flex-col items-center gap-1"><Icon name="Award" size={24}/> Iniciar Liga</button>
-                                <button onClick={startCup} className="bg-purple-600 text-white p-4 rounded-2xl font-bold shadow-lg hover:bg-purple-700 active:scale-95 flex flex-col items-center gap-1"><Icon name="Crown" size={24}/> Iniciar Copa</button>
+                                <button onClick={startLeague} className="bg-blue-600 text-white p-4 rounded-2xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 flex flex-col items-center gap-1"><Icon char="🏆" size={24}/> Iniciar Liga</button>
+                                <button onClick={startCup} className="bg-purple-600 text-white p-4 rounded-2xl font-bold shadow-lg hover:bg-purple-700 active:scale-95 flex flex-col items-center gap-1"><Icon char="👑" size={24}/> Iniciar Copa</button>
                              </div>
                          )}
                          
                          {/* Continue Button */}
                          {gameMode !== 'free' && !duel.car1 && !cupChampion && schedule.length > 0 && (
                              <button onClick={loadNextDuelFromSchedule} className="w-full bg-green-500 text-white p-4 rounded-2xl font-black text-xl shadow-lg hover:bg-green-600 active:scale-95 animate-pulse flex items-center justify-center gap-2">
-                                 <Icon name="Play" size={28} fill="currentColor"/> CONTINUAR TORNEO
+                                 <Icon char="▶️" size={28} fill="currentColor"/> CONTINUAR TORNEO
                              </button>
                          )}
 
@@ -529,7 +684,7 @@
                              
                              {!duel.car1 ? (
                                  <div className="text-center opacity-40">
-                                     <Icon name="Swords" size={64} className="mx-auto mb-2"/>
+                                     <Icon char="⚔️" size={64} className="mx-auto mb-2"/>
                                      <p className="font-bold">ESPERANDO DUELO...</p>
                                  </div>
                              ) : (
@@ -545,7 +700,7 @@
                                                  <span className="text-xs opacity-70">{duel.car1.detail}</span>
                                              </div>
                                          </div>
-                                         {winner?.id===duel.car1.id && <Icon name="CheckCircle" className="text-white"/>}
+                                         {winner?.id===duel.car1.id && <Icon char="✔️" className="text-white"/>}
                                      </button>
                                      
                                      <div className="flex justify-center items-center gap-2">
@@ -564,7 +719,7 @@
                                                  <span className="text-xs opacity-70">{duel.car2.detail || 'Automático'}</span>
                                              </div>
                                          </div>
-                                         {winner?.id===duel.car2.id && <Icon name="CheckCircle" className="text-white"/>}
+                                         {winner?.id===duel.car2.id && <Icon char="✔️" className="text-white"/>}
                                      </button>
                                  </div>
                              )}
@@ -578,9 +733,9 @@
                          {winner && (
                              <div className="flex gap-2">
                                  {gameMode === 'free' ? (
-                                     <button onClick={startRandomDuel} className="flex-1 bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg active:scale-95 flex justify-center gap-2"><Icon name="Shuffle" /> Otro Amistoso</button>
+                                     <button onClick={startRandomDuel} className="flex-1 bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg active:scale-95 flex justify-center gap-2"><Icon char="🔀" /> Otro Amistoso</button>
                                  ) : (
-                                     <button onClick={() => loadNextDuelFromSchedule()} className="flex-1 bg-yellow-500 text-white p-4 rounded-xl font-bold shadow-lg active:scale-95 flex justify-center gap-2"><Icon name="Play" size={28} fill="currentColor"/> Siguiente</button>
+                                     <button onClick={() => loadNextDuelFromSchedule()} className="flex-1 bg-yellow-500 text-white p-4 rounded-xl font-bold shadow-lg active:scale-95 flex justify-center gap-2"><Icon char="▶️" size={28} fill="currentColor"/> Siguiente</button>
                                  )}
                              </div>
                          )}
@@ -596,7 +751,7 @@
                   {/* --- RANKING --- */}
                   {view === 'ranking' && (
                      <div className="animate-fade-in bg-white rounded-2xl shadow p-4 border border-gray-200">
-                         <h2 className="font-bold text-gray-700 mb-4 flex items-center gap-2"><Icon name="Award" size={20} className="text-blue-600"/> Tabla de Posiciones</h2>
+                         <h2 className="font-bold text-gray-700 mb-4 flex items-center gap-2"><Icon char="🏆" size={20} className="text-blue-600"/> Tabla de Posiciones</h2>
                          <table className="w-full text-sm">
                              <thead className="text-gray-400 border-b text-xs"><tr><th className="text-left py-2">#</th><th className="text-left py-2">Auto</th><th className="text-center py-2">Pts</th><th className="text-center py-2">PJ</th></tr></thead>
                              <tbody>
@@ -621,9 +776,10 @@
 
                 {/* --- NAVBAR --- */}
                 <nav className="bg-white border-t border-gray-200 flex justify-around p-2 pb-6 md:pb-2 sticky bottom-0 z-40">
-                   <button onClick={()=>setView('garage')} className={`flex flex-col items-center p-2 rounded-xl transition-all ${view==='garage'?'text-red-600 bg-red-50 font-bold':'text-gray-400'}`}><Icon name="Layers" size={24}/><span className="text-[10px]">Garage</span></button>
-                   <button onClick={()=>setView('arena')} className={`flex flex-col items-center p-2 rounded-xl transition-all ${view==='arena'?'text-red-600 bg-red-50 font-bold':'text-gray-400'}`}><Icon name="Swords" size={24}/><span className="text-[10px]">Arena</span></button>
-                   <button onClick={()=>setView('ranking')} className={`flex flex-col items-center p-2 rounded-xl transition-all ${view==='ranking'?'text-red-600 bg-red-50 font-bold':'text-gray-400'}`}><Icon name="Award" size={24}/><span className="text-[10px]">Tabla</span></button>
+                   <button onClick={()=>setView('garage')} className={`flex flex-col items-center p-2 rounded-xl transition-all ${view==='garage'?'text-red-600 bg-red-50 font-bold':'text-gray-400'}`}><Icon char="🛠️" size={24}/><span className="text-[10px]">Garage</span></button>
+                   <button onClick={()=>setView('arena')} className={`flex flex-col items-center p-2 rounded-xl transition-all ${view==='arena'?'text-red-600 bg-red-50 font-bold':'text-gray-400'}`}><Icon char="⚔️" size={24}/><span className="text-[10px]">Arena</span></button>
+                   <button onClick={()=>setView('ranking')} className={`flex flex-col items-center p-2 rounded-xl transition-all ${view==='ranking'?'text-red-600 bg-red-50 font-bold':'text-gray-400'}`}><Icon char="📈" size={24}/><span className="text-[10px]">Tabla</span></button>
+                   <button onClick={()=>setView('street-counter')} className={`flex flex-col items-center p-2 rounded-xl transition-all ${view==='street-counter'?'text-red-600 bg-red-50 font-bold':'text-gray-400'}`}><Icon char="🚗" size={24}/><span className="text-[10px]">Calle</span></button>
                 </nav>
 
               </div>
@@ -633,10 +789,17 @@
 
         // --- RENDER APPLICATION ---
         // Se ejecuta solo después de que todo el DOM y scripts hayan cargado.
-        window.onload = function() {
-            const root = ReactDOM.createRoot(document.getElementById('root'));
+        const rootElement = document.getElementById('root');
+        if (window.ReactDOM && rootElement) {
+            const root = window.ReactDOM.createRoot(rootElement);
             root.render(<App />);
-        };
+        } else {
+            // Fallback para entornos donde ReactDOM no se define inmediatamente
+            window.onload = function() {
+                const root = window.ReactDOM.createRoot(document.getElementById('root'));
+                root.render(<App />);
+            };
+        }
     </script>
 </body>
 </html>
