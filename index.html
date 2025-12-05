@@ -9,7 +9,17 @@
     <!-- Carga de Lucide Icons (Íconos) -->
     <script type="module">
         import { createIcons, icons } from 'https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.esm.js';
-        createIcons({ icons });
+        window.lucide = { createIcons, icons }; // Hacemos las funciones globales
+        
+        // Función para inicializar iconos, llamada después de cada renderizado
+        window.initializeLucideIcons = () => {
+            if (window.lucide) {
+                window.lucide.createIcons({ icons: window.lucide.icons });
+            }
+        };
+
+        // Inicializamos los iconos estáticos del head
+        document.addEventListener('DOMContentLoaded', window.initializeLucideIcons);
     </script>
     <style>
         /* Importar fuente Poppins */
@@ -206,10 +216,7 @@
             activeTab = tab;
             
             // Inicializar iconos de Lucide Icons en el contenido
-            setTimeout(() => {
-                const { createIcons, icons } = window.lucide;
-                if (createIcons) createIcons({ icons });
-            }, 0);
+            window.initializeLucideIcons();
 
             // Re-adjuntar listeners si es necesario (manejo manual de eventos)
             attachEventListeners();
@@ -476,11 +483,9 @@
 
             if (isGeneric) {
                 // LÓGICA DE ELIMINACIÓN FORZADA DE GENÉRICO: 
-                // Al eliminar un genérico (que no está en Firestore), simplemente 
-                // forzamos la actualización del estado 'cars' en el App.js para que 
-                // se filtre fuera de 'allAvailableCars' inmediatamente en la sesión.
+                // Al eliminar un genérico, simplemente actualizamos el estado 'cars' 
+                // para que se filtre fuera de 'allAvailableCars' y de la vista.
                 
-                // Nota: Usamos una mutación temporal de la lista para forzar la re-renderización local
                 const updatedCars = cars.filter(c => c.id !== carId);
                 cars = updatedCars;
                 window.setNewCarState(null); // Forzar re-renderizado
