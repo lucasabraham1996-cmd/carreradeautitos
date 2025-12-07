@@ -3,1003 +3,923 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏁 Carrera de Autitos Digital</title>
-    <!-- Carga de Tailwind CSS -->
+    <title>MoonRacers</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel para JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Carga de Lucide Icons (Íconos) -->
-    <script type="module">
-        import { createIcons, icons } from 'https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.esm.js';
-        window.lucide = { createIcons, icons }; // Hacemos las funciones globales
-        
-        // Función para inicializar iconos, llamada después de cada renderizado
-        window.initializeLucideIcons = () => {
-            if (window.lucide) {
-                window.lucide.createIcons({ icons: window.lucide.icons });
-            }
-        };
-
-        // Inicializamos los iconos estáticos del head
-        document.addEventListener('DOMContentLoaded', window.initializeLucideIcons);
-    </script>
+    
+    <!-- Google Fonts (Noto Sans) -->
     <style>
-        /* Importar fuente Poppins */
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap');
         
-        /* Aplicar a todos los elementos */
-        body, .font-poppins {
-          font-family: 'Poppins', sans-serif;
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #020617; /* Slate 950 */
+        }
+        
+        /* Animaciones personalizadas */
+        @keyframes shine {
+            0% { left: -100%; opacity: 0; }
+            50% { opacity: 0.5; }
+            100% { left: 200%; opacity: 0; }
+        }
+        
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); }
         }
 
-        /* Estilo para el input[type=color] para que sea estético */
-        input[type="color"]::-webkit-color-swatch-wrapper {
-            padding: 0;
-            border-radius: 0.5rem; /* rounded-lg */
-        }
-        input[type="color"]::-webkit-color-swatch {
-            border: none;
-            border-radius: 0.5rem; /* rounded-lg */
-        }
-        
-        /* Estilo base para el efecto glassmorphism */
-        .glass-card {
-            backdrop-filter: blur(12px);
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 1rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-        
-        /* Ocultar flechas de número en inputs */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-            -webkit-appearance: none; 
-            margin: 0; 
-        }
-        input[type=number] { 
-            -moz-appearance: textfield;
+        .animate-shine {
+            animation: shine 2s infinite linear;
         }
 
+        .animate-bounce-in {
+            animation: bounceIn 0.8s cubic-bezier(0.215, 0.610, 0.355, 1.000) both;
+        }
+
+        /* Utilidad para scrollbar oculto */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
 </head>
-<body class="min-h-screen p-4 sm:p-8 bg-gray-900 font-poppins relative">
+<body>
+    <div id="root"></div>
 
-    <!-- Fondo -->
-    <div class="fixed inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 opacity-95"></div>
-    <div class="fixed inset-0 bg-repeat opacity-[0.05]" style="background-image: url('data:image/svg+xml;utf8,<svg width=\"10\" height=\"10\" viewBox=\"0 0 10 10\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"5\" cy=\"5\" r=\"1\" fill=\"%23FFFFFF\"/></svg>'); background-size: 20px 20px;"></div>
-    
-    <!-- Contenido principal -->
-    <div class="relative max-w-7xl mx-auto z-10">
-        
-        <!-- Encabezado Principal (Glass Card) -->
-        <div class="glass-card p-4 sm:p-6 mb-8">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 drop-shadow-lg">
-              🏁 Carrera de Autitos Digital
-            </h1>
-            <p class="text-gray-300 mt-1">
-                ¡Una pista moderna para jugar con tu nene! | 
-                <span id="user-id-display" class="font-mono text-xs bg-gray-700/50 p-1 rounded ml-2">Cargando...</span>
-            </p>
-        </div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-        <!-- Barra de Pestañas -->
-        <div id="tabs-container" class="flex space-x-1 sm:space-x-4 border-b border-white/20 overflow-x-auto whitespace-nowrap">
-            <!-- Los botones de las pestañas se generan aquí -->
-        </div>
+        // --- DEFINICIÓN DE ÍCONOS (Reemplazo de librería externa para estabilidad) ---
+        const Icon = ({ children, size = 24, className = "", ...props }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width={size} 
+                height={size} 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                className={className}
+                {...props}
+            >
+                {children}
+            </svg>
+        );
 
-        <!-- Contenido de la Pestaña -->
-        <div id="tab-content" class="glass-card mt-0 pt-4 pb-8 bg-gray-800/20" style="min-height: 60vh;">
-            <div id="loading-indicator" class="p-8 text-center text-white text-xl font-poppins">
-                <div class="animate-spin inline-block w-8 h-8 border-4 border-blue-400 border-t-transparent rounded-full mb-4"></div>
-                <p>Cargando datos y autenticación...</p>
-            </div>
-        </div>
-    </div>
+        const Trophy = (props) => <Icon {...props}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></Icon>;
+        const Timer = (props) => <Icon {...props}><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></Icon>;
+        const Car = (props) => <Icon {...props}><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" /><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" /></Icon>;
+        const Users = (props) => <Icon {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></Icon>;
+        const Plus = (props) => <Icon {...props}><path d="M5 12h14" /><path d="M12 5v14" /></Icon>;
+        const Trash2 = (props) => <Icon {...props}><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></Icon>;
+        const Edit3 = (props) => <Icon {...props}><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></Icon>;
+        const ChevronLeft = (props) => <Icon {...props}><path d="m15 18-6-6 6-6" /></Icon>;
+        const ChevronRight = (props) => <Icon {...props}><path d="m9 18 6-6-6-6" /></Icon>;
+        const Play = (props) => <Icon {...props}><polygon points="5 3 19 12 5 21 5 3" /></Icon>;
+        const Pause = (props) => <Icon {...props}><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></Icon>;
+        const RotateCcw = (props) => <Icon {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></Icon>;
+        const X = (props) => <Icon {...props}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></Icon>;
+        const Target = (props) => <Icon {...props}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></Icon>;
+        const ChevronDown = (props) => <Icon {...props}><path d="m6 9 6 6 6-6" /></Icon>;
 
-    <!-- Scripts de Firebase y Lógica -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Objeto lucide para compatibilidad con código existente
+        const lucide = {
+            Trophy, Timer, Car, Users, Plus, Trash2, Edit3, 
+            ChevronLeft, ChevronRight, Play, Pause, RotateCcw, 
+            X, Target, ChevronDown
+        };
 
-        // --- CONSTANTES Y UTILIDADES DE FIREBASE ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
-
-        let app, db, auth;
-        let userId = null;
-        let isAuthReady = false;
-        
-        // Datos de la aplicación
-        let cars = []; // Autos de usuario
-        let genericCars = [
-            { id: 'gen-1', brand: 'Ferrari', model: 'F40', color: '#ef4444', logo: '🐎', isGeneric: true },
-            { id: 'gen-2', brand: 'Mercedes', model: 'AMG', color: '#6b7280', logo: '🌟', isGeneric: true },
-            { id: 'gen-3', brand: 'Red Bull', model: 'RB19', color: '#2563eb', logo: '🐂', isGeneric: true },
-            { id: 'gen-4', brand: 'McLaren', model: 'F1', color: '#f97316', logo: '🥝', isGeneric: true },
-            { id: 'gen-5', brand: 'Aston Martin', model: 'Valkyrie', color: '#059669', logo: '🌿', isGeneric: true },
-            { id: 'gen-6', brand: 'Peugeot', model: '208', color: '#312e81', logo: '🦁', isGeneric: true },
-            { id: 'gen-7', brand: 'Volkswagen', model: 'Golf', color: '#1d4ed8', logo: '🪲', isGeneric: true },
-            { id: 'gen-8', brand: 'FIAT', model: 'Cronos', color: '#dc2626', logo: '🇮🇹', isGeneric: true },
-            { id: 'gen-9', brand: 'Ford', model: 'Mustang', color: '#f59e0b', logo: '💙', isGeneric: true },
-            { id: 'gen-10', brand: 'Renault', model: 'Clio', color: '#facc15', logo: '💎', isGeneric: true },
-            { id: 'gen-11', brand: 'Audi', model: 'R8', color: '#4b5563', logo: '⭕', isGeneric: true },
-            { id: 'gen-12', brand: 'BMW', model: '911', color: '#8b5cf6', logo: '💠', isGeneric: true },
-            { id: 'gen-13', brand: 'Chevrolet', model: 'GT', color: '#06b6d4', logo: '🟦', isGeneric: true },
-            { id: 'gen-14', brand: 'Toyota', model: 'Corvette', color: '#1f2937', logo: '🏎️', isGeneric: true },
-            { id: 'gen-15', brand: 'Nissan', model: 'Supra', color: '#9d174d', logo: '🟥', isGeneric: true },
-            { id: 'gen-16', brand: 'Alpine', model: 'A110', color: '#fb7185', logo: '⛰️', isGeneric: true },
-        ].map(car => ({...car, isGeneric: true}));
-        let cupData = { participants: [], rounds: [], winnerId: null };
-        let timeRaceData = { results: [] };
-        let streetCounterData = { counters: [], isCounting: false, winner: null, competitionMode: 'model' };
-
-        let activeTab = 'garage';
-
-        // Variables de cronómetro
-        let stopwatchTime = 0;
-        let stopwatchRunning = false;
-        let stopwatchInterval = null;
-        let recordedTime = null;
+        // --- DATA INICIAL ---
+        const INITIAL_CARS = [
+            { id: 1, model: '911 GT3 RS', brand: 'Porsche', color: '#ef4444', logo: 'https://upload.wikimedia.org/wikipedia/de/thumb/2/2d/Porsche_Wappen.svg/1200px-Porsche_Wappen.svg.png' },
+            { id: 2, model: 'F40', brand: 'Ferrari', color: '#dc2626', logo: 'https://upload.wikimedia.org/wikipedia/de/c/c0/Scuderia_Ferrari_Logo.svg' },
+            { id: 3, model: 'Mustang Shelby', brand: 'Ford', color: '#2563eb', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Ford_logo_flat.svg/2560px-Ford_logo_flat.svg.png' },
+            { id: 4, model: 'Skyline R34', brand: 'Nissan', color: '#0ea5e9', logo: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Nissan_logo.png' },
+            { id: 5, model: 'Supra MK4', brand: 'Toyota', color: '#f97316', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Toyota_carlogo.svg/1200px-Toyota_carlogo.svg.png' },
+            { id: 6, model: 'Aventador', brand: 'Lamborghini', color: '#eab308', logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/df/Lamborghini_Logo.svg/1200px-Lamborghini_Logo.svg.png' },
+            { id: 7, model: 'M3 E46', brand: 'BMW', color: '#cbd5e1', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/BMW.svg/2048px-BMW.svg.png' },
+            { id: 8, model: 'AMG GTR', brand: 'Mercedes', color: '#10b981', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Benz_logo.svg/1024px-Mercedes-Benz_logo.svg.png' },
+            { id: 9, model: 'Chiron', brand: 'Bugatti', color: '#3b82f6', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Bugatti_logo.svg/2560px-Bugatti_logo.svg.png' },
+            { id: 10, model: 'Huayra', brand: 'Pagani', color: '#a8a29e', logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Pagani_Automobili_logo%2C_2023.png' },
+            { id: 11, model: 'Civic Type R', brand: 'Honda', color: '#ffffff', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Honda.svg/2560px-Honda.svg.png' },
+            { id: 12, model: 'Impreza WRX', brand: 'Subaru', color: '#1d4ed8', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Subaru_logo.svg/1200px-Subaru_logo.svg.png' },
+            { id: 13, model: 'RX-7', brand: 'Mazda', color: '#facc15', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Mazda_logo_with_emblem.svg/2560px-Mazda_logo_with_emblem.svg.png' },
+            { id: 14, model: 'Viper ACR', brand: 'Dodge', color: '#4c1d95', logo: 'https://1000logos.net/wp-content/uploads/2018/05/Dodge-Logo-2010.png' },
+            { id: 15, model: 'Corvette C8', brand: 'Chevrolet', color: '#ef4444', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Chevrolet-logo.png/2560px-Chevrolet-logo.png' },
+            { id: 16, model: '720S', brand: 'McLaren', color: '#fb923c', logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/6/66/McLaren_Racing_logo.svg/1200px-McLaren_Racing_logo.svg.png' },
+        ];
 
         // --- UTILIDADES ---
-
-        const generateId = () => Math.random().toString(36).substring(2, 9);
-        
-        const getCarConfig = (carId) => {
-            const all = getAllAvailableCars();
-            const car = all.find(c => c.id === carId);
-            if (!car) return { model: 'N/A', brand: 'N/A', logo: '?', color: '#4b5563' };
-            return car;
+        const formatTime = (time) => {
+            const minutes = Math.floor(time / 60000);
+            const seconds = Math.floor((time % 60000) / 1000);
+            const milliseconds = Math.floor((time % 1000) / 10);
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${milliseconds.toString().padStart(2, '0')}`;
         };
 
-        const getModelInitials = (model) => {
-            if (!model) return '??';
-            if (model.split(/\s+|-/).length === 1) {
-                return model.toUpperCase();
-            }
-            return model.split(/\s+|-/)
-                .map(word => word.charAt(0))
-                .join('')
-                .toUpperCase();
+        const getCarGradient = (color) => {
+            return `linear-gradient(135deg, ${color}20 0%, ${color}80 100%)`;
         };
 
-        const formatTime = (timeInMs) => {
-            const totalSeconds = timeInMs / 1000;
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = Math.floor(totalSeconds % 60);
-            const milliseconds = Math.floor((totalSeconds * 1000) % 1000);
-
-            const pad = (num, length = 2) => String(num).padStart(length, '0');
-
-            return `${pad(minutes)}:${pad(seconds)}.${pad(milliseconds, 3)}`;
+        const getCarBorder = (color) => {
+            return `1px solid ${color}80`;
         };
 
-        const getAllAvailableCars = () => {
-            const userCars = cars;
-            const userCarIds = new Set(userCars.map(c => c.id));
-            
-            // Filtra genéricos que NO han sido eliminados/reemplazados por el usuario
-            const activeGenericCars = genericCars.filter(gCar => !userCarIds.has(gCar.id) && !userCars.some(uCar => uCar.id === gCar.id));
-            
-            return [...userCars, ...activeGenericCars];
+        const getCarShadow = (color) => {
+            return `0 0 20px ${color}40`;
         };
 
-        // --- RENDERIZADO UI ---
+        // Fuente oficial
+        const headerFontClass = "font-black italic tracking-tighter uppercase";
 
-        const renderApp = (tab = activeTab) => {
-            if (!isAuthReady) return;
+        // ---------------- COMPONENTES ----------------
 
-            const content = document.getElementById('tab-content');
-            
-            // Renderizar la barra de pestañas
-            const tabsContainer = document.getElementById('tabs-container');
-            tabsContainer.innerHTML = [
-                { id: 'garage', icon: 'car', label: 'Garaje (Autos)' },
-                { id: 'cup', icon: 'award', label: 'Copa Eliminatoria' },
-                { id: 'timerace', icon: 'clock', label: 'Carrera de Tiempos (F1)' },
-                { id: 'streetcounter', icon: 'users', label: 'Contador Calle' }
-            ].map(t => `
-                <button
-                    onclick="setTab('${t.id}')"
-                    class="px-4 py-3 flex items-center space-x-2 rounded-t-xl transition-all duration-300 font-poppins
-                    ${tab === t.id ? 'bg-white/20 border-b-4 border-blue-400 text-blue-300 font-bold shadow-xl shadow-blue-500/30' : 'text-gray-300 hover:bg-white/10 hover:text-white'}
-                    backdrop-blur-sm"
-                >
-                    <i data-lucide="${t.icon}" class="w-5 h-5"></i>
-                    <span class="hidden sm:inline">${t.label}</span>
-                </button>
-            `).join('');
+        // 1. GARAJE (Ajustado para centrado perfecto)
+        const Garage = ({ cars, setCars }) => {
+            const [activeIndex, setActiveIndex] = useState(0);
+            const [isEditing, setIsEditing] = useState(false);
+            const [formData, setFormData] = useState({ model: '', brand: '', color: '#ffffff', logo: '' });
+            const [showForm, setShowForm] = useState(false);
 
-            // Renderizar contenido de la pestaña
-            content.innerHTML = `<div class="p-6 space-y-8">${getTabContent(tab)}</div>`;
-            activeTab = tab;
-            
-            // Inicializar iconos de Lucide Icons en el contenido
-            window.initializeLucideIcons();
+            const nextCar = () => setActiveIndex((prev) => (prev + 1) % cars.length);
+            const prevCar = () => setActiveIndex((prev) => (prev - 1 + cars.length) % cars.length);
 
-            // Re-adjuntar listeners si es necesario (manejo manual de eventos)
-            attachEventListeners();
-        };
-        
-        // Placeholder simple para el logo (usado en Garaje, Carrera, Copa y Contador)
-        const renderLogoDisplay = (logo, model, size = 'w-6 h-6', isWatermark = false, color = '#ffffff') => {
-            const isURL = logo && logo.startsWith('http');
-            const watermarkStyle = isWatermark ? `transform: translateY(-50%) rotate(-15deg); color: ${color}; opacity: 0.15;` : '';
-            const watermarkClass = isWatermark ? 'absolute -left-4 top-1/2' : '';
-            const imgStyle = isWatermark ? 'filter: grayscale(100%) brightness(150%);' : '';
-
-            if (isURL) {
-                const sizePx = isWatermark ? '128px' : '28px';
-                return `
-                    <img src="${logo}" alt="Logo de ${model}" 
-                         class="object-contain ${isWatermark ? 'w-32 h-32' : size} ${isWatermark ? 'rounded-none' : 'rounded-full'} ${watermarkClass}" 
-                         style="${isWatermark ? `width: ${sizePx}; height: ${sizePx};` : ''} ${imgStyle}"
-                         onerror="this.onerror=null;this.src='https://placehold.co/24x24/1f2937/f9fafb?text=L';"
-                    >
-                `;
-            } else {
-                 const fontSize = isWatermark ? '5rem' : '1.25rem';
-                 return `
-                    <span class="${isWatermark ? 'text-[6rem] opacity-70' : ''} flex items-center justify-center ${size} ${watermarkClass}" style="${watermarkStyle}; font-size: ${fontSize};">
-                        ${logo || '🚗'}
-                    </span>
-                 `;
-            }
-        };
-
-
-        // --- CONTENIDO DE PESTAÑAS ---
-
-        const getTabContent = (tab) => {
-            if (!isAuthReady) return `<div class="p-8 text-center text-white text-xl font-poppins"><i data-lucide="loader" class="w-8 h-8 animate-spin inline-block mb-4"></i><p>Cargando datos y autenticación...</p></div>`;
-
-            switch (tab) {
-                case 'garage': return renderGarageTab();
-                case 'cup': return renderCupTab();
-                case 'timerace': return renderTimeRaceTab();
-                case 'streetcounter': return renderStreetCounterTab();
-                default: return '';
-            }
-        };
-        
-        // --- GARAGE TAB ---
-
-        const renderGarageTab = () => {
-            const defaultNewCarState = { id: '', brand: '', model: '', color: '#3b82f6', logo: '🚗', isGeneric: false };
-            const currentCar = window.newCar || defaultNewCarState;
-            const isEditing = !!currentCar.id;
-            const allCars = getAllAvailableCars();
-            
-            const handleInputChange = (e) => {
-                const { name, value } = e.target;
-                window.newCar = { ...currentCar, [name]: value };
-                // Actualiza solo los inputs para no re-renderizar todo
-                document.getElementById(name + 'Input').value = value; 
-                if (name === 'color') document.getElementById('colorPicker').value = value;
-                if (name === 'color') document.getElementById('colorHex').value = value;
-                if (name === 'logo') document.getElementById('logoDisplayPreview').innerHTML = renderLogoDisplay(value, currentCar.model, 'w-7 h-7');
+            const handleSave = () => {
+                if (isEditing) {
+                    const updatedCars = [...cars];
+                    updatedCars[activeIndex] = { ...formData, id: cars[activeIndex].id };
+                    setCars(updatedCars);
+                } else {
+                    setCars([...cars, { ...formData, id: Date.now() }]);
+                    setActiveIndex(cars.length);
+                }
+                setShowForm(false);
+                setIsEditing(false);
+                setFormData({ model: '', brand: '', color: '#ffffff', logo: '' });
             };
 
-            // HTML del formulario
-            const formHtml = `
-                <div class="glass-card p-6">
-                    <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                        <i data-lucide="car" class="w-6 h-6 mr-2 text-blue-400"></i>
-                        ${isEditing ? 'Editar Auto Existente' : 'Nuevo Auto al Garaje'}
-                    </h2>
-                    
-                    <p id="garage-error" class="mb-4 p-2 rounded-lg text-white" style="display: none;"></p>
+            const startEdit = () => {
+                setFormData(cars[activeIndex]);
+                setIsEditing(true);
+                setShowForm(true);
+            };
 
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        
-                        <div>
-                            <label for="brandInput" class="block text-sm font-medium text-gray-300 mb-1">Marca</label>
-                            <input type="text" name="brand" id="brandInput" value="${currentCar.brand}" placeholder="Ej: Lamborghini, FIAT"
-                                oninput="window.newCar = {...window.newCar, brand: this.value};"
-                                class="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-gray-300 focus:ring-blue-400 focus:border-blue-400 transition-colors"
-                            />
-                        </div>
-                        
-                        <div>
-                            <label for="modelInput" class="block text-sm font-medium text-gray-300 mb-1">Modelo</label>
-                            <input type="text" name="model" id="modelInput" value="${currentCar.model}" placeholder="Ej: Diablo, Cronos"
-                                oninput="window.newCar = {...window.newCar, model: this.value};"
-                                class="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-gray-300 focus:ring-blue-400 focus:border-blue-400 transition-colors"
-                            />
-                        </div>
+            const deleteCar = () => {
+                if (cars.length <= 1) return alert("Debe haber al menos un auto.");
+                const newCars = cars.filter((_, i) => i !== activeIndex);
+                setCars(newCars);
+                setActiveIndex(0);
+            };
 
-                        <div class="relative md:col-span-2 flex space-x-4">
-                            <div class="flex-1">
-                                <label for="colorPicker" class="block text-sm font-medium text-gray-300 mb-1">Color Base</label>
-                                <input type="color" name="color" id="colorPicker" value="${currentCar.color}"
-                                    oninput="document.getElementById('colorHex').value = this.value; window.newCar = {...window.newCar, color: this.value};"
-                                    class="w-full h-[42px] bg-white/20 border border-white/30 rounded-lg focus:ring-blue-400 focus:border-blue-400 transition-colors cursor-pointer" style="padding: 0; border: none;"
-                                />
-                            </div>
-                            <div class="flex-1">
-                                <label for="colorHex" class="block text-sm font-medium text-gray-300 mb-1">Hex</label>
-                                <input type="text" name="color" id="colorHex" value="${currentCar.color}" placeholder="#3b82f6"
-                                    oninput="document.getElementById('colorPicker').value = this.value; window.newCar = {...window.newCar, color: this.value};"
-                                    class="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-gray-300 focus:ring-blue-400 focus:border-blue-400 transition-colors"
-                                />
-                            </div>
-                        </div>
+            return (
+                <div className="flex flex-col items-center justify-center h-full w-full relative overflow-hidden">
+                    {/* Background Glows */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+                    {/* Main Display Area */}
+                    <div className="relative w-full h-[500px] flex items-center justify-center perspective-1000">
                         
-                        <div class="md:col-span-4">
-                            <label for="logoInput" class="block text-sm font-medium text-gray-300 mb-1">Logo (Emoji o URL)</label>
-                            <div class="flex space-x-2">
-                                <input type="text" name="logo" id="logoInput" value="${currentCar.logo}" placeholder="Ej: 🏎️ o https://logo.com/image.png"
-                                    oninput="document.getElementById('logoDisplayPreview').innerHTML = renderLogoDisplay(this.value, 'Preview', 'w-7 h-7'); window.newCar = {...window.newCar, logo: this.value};"
-                                    class="flex-1 px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-gray-300 focus:ring-blue-400 focus:border-blue-400 transition-colors"
-                                />
-                                <div id="logoDisplayPreview" class="w-10 h-[42px] flex items-center justify-center bg-white/20 rounded-lg overflow-hidden">
-                                    ${renderLogoDisplay(currentCar.logo, currentCar.model, 'w-7 h-7')}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-6 flex justify-end space-x-2">
-                        ${isEditing ? `
-                            <button onclick="setNewCarState(null)" class="px-4 py-2 rounded-xl text-white font-semibold transition-all duration-200 bg-gray-600 hover:bg-gray-700 shadow-lg shadow-gray-500/50">
-                                Cancelar Edición
+                        {/* Navigation Buttons - Fixed Position Relative to Screen Center */}
+                        <div className="absolute inset-0 flex items-center justify-between px-4 md:px-12 pointer-events-none z-30 max-w-6xl mx-auto w-full">
+                            <button onClick={prevCar} className="pointer-events-auto p-4 bg-white/5 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/20 transition-all group">
+                                <ChevronLeft className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
                             </button>
-                        ` : ''}
-                        <button onclick="handleSaveCarClick()" class="px-4 py-2 rounded-xl text-white font-semibold transition-all duration-200 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg shadow-blue-500/50" id="save-car-button">
-                            ${isEditing ? 'Guardar Cambios' : 'Añadir Auto'}
+                            <button onClick={nextCar} className="pointer-events-auto p-4 bg-white/5 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/20 transition-all group">
+                                <ChevronRight className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
+                            </button>
+                        </div>
+
+                        {/* Cards Stack */}
+                        {cars.map((car, index) => {
+                            const isActive = index === activeIndex;
+                            const isPrev = index === (activeIndex - 1 + cars.length) % cars.length;
+                            const isNext = index === (activeIndex + 1) % cars.length;
+                            
+                            // Renderizamos solo los necesarios para performance
+                            if (!isActive && !isPrev && !isNext && cars.length > 3) return null;
+
+                            let transformClass = '';
+                            let zIndex = 0;
+                            let opacity = 'opacity-0';
+
+                            if (isActive) {
+                                // CENTRADO PERFECTO: Sin traslación X adicional
+                                transformClass = 'scale-100 translate-x-0 z-20'; 
+                                zIndex = 20;
+                                opacity = 'opacity-100';
+                            } else if (isPrev) {
+                                // A la izquierda
+                                transformClass = 'scale-75 -translate-x-[110%] rotate-y-12 blur-[1px]';
+                                zIndex = 10;
+                                opacity = 'opacity-50';
+                            } else if (isNext) {
+                                // A la derecha
+                                transformClass = 'scale-75 translate-x-[110%] -rotate-y-12 blur-[1px]';
+                                zIndex = 10;
+                                opacity = 'opacity-50';
+                            }
+
+                            return (
+                                <div 
+                                    key={car.id}
+                                    className={`absolute top-1/2 left-1/2 w-80 md:w-96 h-[450px] transition-all duration-500 ease-out origin-center -translate-y-1/2 -translate-x-1/2 ${transformClass} ${opacity}`}
+                                    style={{ zIndex }}
+                                >
+                                    {/* Card Body */}
+                                    <div 
+                                        className="w-full h-full backdrop-blur-xl border rounded-3xl flex flex-col overflow-hidden relative group shadow-2xl"
+                                        style={{ 
+                                            background: getCarGradient(car.color),
+                                            borderColor: `${car.color}60`,
+                                            boxShadow: isActive ? `0 0 50px ${car.color}40` : 'none'
+                                        }}
+                                    >
+                                        {/* Header Background Gradient */}
+                                        <div className="h-32 bg-gradient-to-b from-black/40 to-transparent absolute top-0 w-full" />
+                                        
+                                        {/* Logo Area */}
+                                        <div className="relative z-10 flex justify-center items-center mt-12 mb-4 h-32 transform group-hover:scale-110 transition-transform duration-500">
+                                            {car.logo ? (
+                                                <img src={car.logo} alt={car.brand} className="h-32 w-32 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" />
+                                            ) : (
+                                                <Car className="w-24 h-24 text-white/50" />
+                                            )}
+                                        </div>
+
+                                        {/* Car Details */}
+                                        <div className="flex-1 flex flex-col items-center justify-end pb-12 z-10 text-center px-4">
+                                            <h2 className={`text-4xl text-white mb-2 drop-shadow-lg ${headerFontClass}`}>{car.brand}</h2>
+                                            <h3 className="text-xl text-blue-100 font-medium tracking-widest uppercase opacity-90">{car.model}</h3>
+                                            
+                                            {/* Color Indicator */}
+                                            <div className="flex items-center gap-2 mt-6 bg-black/40 px-4 py-2 rounded-full border border-white/10 backdrop-blur-md">
+                                                <span className="text-[10px] text-gray-300 uppercase tracking-widest font-bold">Pintura</span>
+                                                <div 
+                                                    className="w-5 h-5 rounded-full border border-white/50 shadow-[0_0_10px_currentColor]"
+                                                    style={{ backgroundColor: car.color, color: car.color }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Glass Shine Effect */}
+                                        <div className="absolute top-0 -left-[100%] w-[50%] h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 group-hover:animate-shine pointer-events-none" />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Controls */}
+                    <div className="flex gap-4 mt-8 z-20">
+                        <button onClick={() => { setIsEditing(false); setFormData({ model: '', brand: '', color: '#ffffff', logo: '' }); setShowForm(true); }} className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-600/30 transition-all font-bold tracking-wide hover:-translate-y-1">
+                            <Plus size={20} /> NUEVO
+                        </button>
+                        <button onClick={startEdit} className="flex items-center gap-2 px-6 py-3 bg-slate-700/50 hover:bg-slate-600/50 backdrop-blur-md text-white border border-white/10 rounded-xl transition-all hover:-translate-y-1">
+                            <Edit3 size={20} /> EDITAR
+                        </button>
+                        <button onClick={deleteCar} className="flex items-center gap-2 px-6 py-3 bg-red-900/40 hover:bg-red-800/60 backdrop-blur-md text-red-200 border border-red-500/20 rounded-xl transition-all hover:-translate-y-1">
+                            <Trash2 size={20} /> BORRAR
                         </button>
                     </div>
-                </div>
-            `;
 
-            // HTML de la lista de autos
-            const listHtml = `
-                <div class="glass-card p-6">
-                    <h2 class="text-2xl font-bold text-white mb-4">Visualizador de Autos Cargados (${allCars.length})</h2>
-                    <p class="text-gray-400 mb-4 text-sm">Los autos genéricos (Genérico) pueden ser **eliminados** para ser reemplazados por tus propios autos. **Presiona el lápiz para editar o precargar datos.**</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-96 overflow-y-auto pr-2">
-                        ${allCars.length === 0 ? '<p class="text-gray-400 col-span-full">No hay autos disponibles.</p>' : allCars.map(car => `
-                            <div class="glass-card bg-gray-900/50 p-3 flex items-center justify-between space-x-3 w-full">
-                                <div class="flex items-center space-x-3 flex-1 rounded-lg p-2 font-poppins shadow-inner border-2"
-                                    style="background-color: ${car.color}; border-color: ${car.color === '#f9fafb' ? '#d1d5db' : '#ffffff40'}; box-shadow: 0 0 10px ${car.color}50;">
-                                    <div class="w-8 h-8 flex-shrink-0 bg-white/30 rounded-full flex items-center justify-center overflow-hidden">
-                                        ${renderLogoDisplay(car.logo, car.model, 'w-7 h-7')}
+                    {/* Modal Form */}
+                    {showForm && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                            <div className="bg-slate-900 border border-blue-500/30 w-full max-w-md p-8 rounded-2xl shadow-2xl relative">
+                                <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X /></button>
+                                <h3 className={`text-2xl text-white mb-6 ${headerFontClass}`}>{isEditing ? 'Editar Auto' : 'Nuevo Auto'}</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs text-blue-300 uppercase font-bold">Marca</label>
+                                        <input 
+                                            type="text" 
+                                            value={formData.brand} 
+                                            onChange={e => setFormData({...formData, brand: e.target.value})}
+                                            className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 mt-1 focus:border-blue-500 outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder="Ej. Ferrari"
+                                        />
                                     </div>
-                                    <div class="text-white font-bold truncate text-sm">
-                                        <span class="text-xs block opacity-70">${car.brand} ${car.isGeneric ? '(Genérico)' : ''}</span>
-                                        <span class="text-lg block font-extrabold leading-none">${car.model}</span>
+                                    <div>
+                                        <label className="text-xs text-blue-300 uppercase font-bold">Modelo</label>
+                                        <input 
+                                            type="text" 
+                                            value={formData.model} 
+                                            onChange={e => setFormData({...formData, model: e.target.value})}
+                                            className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 mt-1 focus:border-blue-500 outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder="Ej. F40"
+                                        />
                                     </div>
-                                </div>
-                                <div class="flex space-x-1">
-                                    <button onclick="handleEditCarClick('${car.id}')" class="p-1 rounded-full text-blue-400 hover:bg-blue-500/20 transition-colors flex-shrink-0">
-                                        <i data-lucide="edit" class="w-4 h-4"></i>
+                                    <div>
+                                        <label className="text-xs text-blue-300 uppercase font-bold">Logo URL</label>
+                                        <input 
+                                            type="text" 
+                                            value={formData.logo} 
+                                            onChange={e => setFormData({...formData, logo: e.target.value})}
+                                            className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 mt-1 focus:border-blue-500 outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder="https://..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-blue-300 uppercase font-bold">Color</label>
+                                        <div className="flex gap-2 items-center mt-1">
+                                            <input 
+                                                type="color" 
+                                                value={formData.color} 
+                                                onChange={e => setFormData({...formData, color: e.target.value})}
+                                                className="w-12 h-12 bg-transparent rounded cursor-pointer border-0 p-0"
+                                            />
+                                            <span className="text-white text-sm opacity-50">{formData.color}</span>
+                                        </div>
+                                    </div>
+                                    <button onClick={handleSave} className="w-full py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold rounded-xl mt-4 hover:brightness-110 transition-all shadow-lg shadow-blue-600/20">
+                                        GUARDAR AUTO
                                     </button>
-                                    <button onclick="handleDeleteCarClick('${car.id}', ${car.isGeneric})" class="p-1 rounded-full text-red-400 hover:bg-red-500/20 transition-colors flex-shrink-0">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    </button>
                                 </div>
                             </div>
-                        `).join('')}
-                    </div>
+                        </div>
+                    )}
                 </div>
-            `;
-
-            window.newCar = currentCar; // Asegurar que el estado del formulario se mantenga globalmente
-            return formHtml + listHtml;
+            );
         };
 
-        // --- FUNCIONES DE MANEJO DE EVENTOS DE GARAGE (GLOBALES) ---
-
-        window.setNewCarState = (car = null) => {
-            window.newCar = car ? { ...car, isGeneric: false } : { id: '', brand: '', model: '', color: '#3b82f6', logo: '🚗' };
-            renderApp('garage');
-        };
-
-        window.handleEditCarClick = (carId) => {
-            const car = getAllAvailableCars().find(c => c.id === carId);
-            if (car) {
-                window.newCar = { 
-                    id: car.id, 
-                    brand: car.brand, 
-                    model: car.model, 
-                    color: car.color, 
-                    logo: car.logo,
-                    isGeneric: car.isGeneric
-                };
-                if (car.isGeneric) {
-                     window.showError("garage", "Este es un auto genérico. Presiona 'Guardar Cambios' para crear una copia editable.");
-                } else {
-                     window.showError("garage", null);
-                }
-                renderApp('garage');
-            }
-        };
-
-        window.handleSaveCarClick = async () => {
-            // Lógica de validación
-            const currentCar = window.newCar;
-            if (!currentCar.model.trim() || !currentCar.brand.trim()) {
-                window.showError("garage", "La Marca y el Modelo del auto no pueden estar vacíos.", 'bg-red-800/50');
-                return;
-            }
-
-            // Deshabilitar botón
-            document.getElementById('save-car-button').innerHTML = 'Guardando...';
-            document.getElementById('save-car-button').disabled = true;
-
-            const carData = {
-                ...currentCar,
-                brand: currentCar.brand.trim(),
-                model: currentCar.model.trim(),
-                isGeneric: false 
-            };
+        // 2. COPA (Bracket System)
+        const Tournament = ({ cars }) => {
+            const [bracket, setBracket] = useState(null);
             
-            try {
-                const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/cars`, 'user_cars_list');
-                const docSnap = await getDoc(userDocRef);
-                const currentList = docSnap.exists() ? docSnap.data().list || [] : [];
+            const startTournament = () => {
+                if (cars.length < 16) return alert("Necesitas al menos 16 autos en el garaje para la Copa.");
                 
-                let updatedList = [...currentList];
-
-                if (currentCar.id) {
-                    const index = updatedList.findIndex(c => c.id === currentCar.id);
-                    if (index !== -1) {
-                        updatedList[index] = carData; // Actualizar auto existente (no genérico)
-                    } else {
-                        // Edición de Genérico o auto no persistido (se añade como nuevo)
-                        carData.id = generateId();
-                        updatedList.push(carData);
-                    }
-                } else {
-                    // Nuevo auto
-                    carData.id = generateId();
-                    updatedList.push(carData);
+                const shuffled = [...cars].sort(() => 0.5 - Math.random()).slice(0, 16);
+                const round1 = [];
+                for(let i=0; i<16; i+=2) {
+                    round1.push({ p1: shuffled[i], p2: shuffled[i+1], winner: null });
                 }
                 
-                // Sobrescribir la lista completa de autos de usuario en Firestore
-                await setDoc(userDocRef, { list: updatedList });
-                window.showError("garage", "Auto guardado con éxito.", 'bg-green-800/50');
-
-                // Si fue una edición de un genérico, necesitamos hacer una eliminación local
-                if (currentCar.isGeneric) {
-                    // Si guardamos un auto basado en un genérico, el genérico debería "desaparecer"
-                    // de la vista local (se maneja por el App.js al no tener su ID en 'cars')
-                }
-
-                setNewCarState(null); // Resetear formulario
-
-            } catch (e) {
-                console.error("Error al guardar/editar auto: ", e);
-                window.showError("garage", "Fallo al guardar/editar el auto.", 'bg-red-800/50');
-            } finally {
-                document.getElementById('save-car-button').innerHTML = currentCar.id ? 'Guardar Cambios' : 'Añadir Auto';
-                document.getElementById('save-car-button').disabled = false;
-            }
-        };
-
-        window.handleDeleteCarClick = async (carId, isGeneric) => {
-            if (!auth.currentUser || !db) return;
-
-            if (isGeneric) {
-                // LÓGICA DE ELIMINACIÓN FORZADA DE GENÉRICO: 
-                // Al eliminar un genérico, simplemente actualizamos el estado 'cars' 
-                // para que se filtre fuera de 'allAvailableCars' y de la vista.
-                
-                const updatedCars = cars.filter(c => c.id !== carId);
-                cars = updatedCars;
-                window.setNewCarState(null); // Forzar re-renderizado
-                window.showError("garage", "Auto genérico eliminado de la lista de participantes.", 'bg-orange-800/50');
-                
-            } else {
-                // ELIMINACIÓN DE AUTO DE USUARIO (PERSISTENTE EN FIRESTORE)
-                try {
-                    const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/cars`, 'user_cars_list');
-                    const docSnap = await getDoc(userDocRef);
-                    if (docSnap.exists()) {
-                        const currentList = docSnap.data().list || [];
-                        const newList = currentList.filter(c => c.id !== carId);
-                        await setDoc(userDocRef, { list: newList });
-                        window.showError("garage", "Auto de usuario eliminado permanentemente.", 'bg-green-800/50');
-                    }
-                    if (window.newCar && window.newCar.id === carId) {
-                        setNewCarState(null);
-                    }
-                } catch (e) {
-                    console.error("Error al eliminar auto de usuario: ", e);
-                    window.showError("garage", "Fallo al eliminar el auto de usuario.", 'bg-red-800/50');
-                }
-            }
-            renderApp('garage');
-        };
-        
-        // Función auxiliar para mostrar errores
-        window.showError = (tabId, message, colorClass = 'bg-red-800/50') => {
-            const container = document.getElementById(tabId + '-error');
-            if (container) {
-                if (message) {
-                    container.innerHTML = message;
-                    container.className = `mb-4 p-2 rounded-lg text-white ${colorClass}`;
-                    container.style.display = 'block';
-                } else {
-                    container.style.display = 'none';
-                    container.innerHTML = '';
-                }
-            }
-        };
-
-        // --- Resto de funciones (Copa, Carrera, Contador) ---
-        
-        // [Implementación simplificada para el demo, enfocándose en la estética y bugs]
-        
-        const renderCupTab = () => {
-            const MAX_PARTICIPANTS = 16;
-            const participantsToUse = getAllAvailableCars().slice(0, MAX_PARTICIPANTS);
-            const isCupReady = participantsToUse.length === MAX_PARTICIPANTS;
-            const isCupStarted = cupData.rounds.length > 0;
-
-            const handleInitCup = async () => {
-                 if (participantsToUse.length < MAX_PARTICIPANTS) return;
-                
-                const shuffledCars = [...participantsToUse].sort(() => 0.5 - Math.random());
-                const newRounds = [{ name: 'Octavos', matches: [] }, { name: 'Cuartos', matches: [] }, { name: 'Semifinales', matches: [] }, { name: 'Final', matches: [] }];
-                for (let i = 0; i < MAX_PARTICIPANTS / 2; i++) {
-                    newRounds[0].matches.push({ id: generateId(), car1Id: shuffledCars[i * 2].id, car2Id: shuffledCars[i * 2 + 1].id, winnerId: null });
-                }
-                cupData = { participants: shuffledCars.map(c => c.id), rounds: newRounds, winnerId: null };
-                await setDoc(doc(db, `artifacts/${appId}/users/${userId}/cup`, 'cup_state'), cupData);
-                renderApp('cup');
-            };
-
-            const handleSelectWinner = async (roundIndex, matchIndex, winnerCarId) => {
-                const newCupData = JSON.parse(JSON.stringify(cupData));
-                const currentMatch = newCupData.rounds[roundIndex].matches[matchIndex];
-                currentMatch.winnerId = winnerCarId;
-                
-                if (roundIndex < 3) {
-                    const nextRoundIndex = roundIndex + 1;
-                    const nextMatchIndex = Math.floor(matchIndex / 2);
-                    
-                    if (!newCupData.rounds[nextRoundIndex].matches[nextMatchIndex]) {
-                        newCupData.rounds[nextRoundIndex].matches[nextMatchIndex] = { id: generateId(), car1Id: null, car2Id: null, winnerId: null };
-                    }
-                    
-                    const nextMatch = newCupData.rounds[nextRoundIndex].matches[nextMatchIndex];
-                    if (matchIndex % 2 === 0) { nextMatch.car1Id = winnerCarId; } else { nextMatch.car2Id = winnerCarId; }
-                    if (!nextMatch.car1Id || !nextMatch.car2Id) { nextMatch.winnerId = null; }
-
-                } else {
-                    newCupData.winnerId = winnerCarId;
-                }
-
-                cupData = newCupData;
-                await setDoc(doc(db, `artifacts/${appId}/users/${userId}/cup`, 'cup_state'), cupData);
-                renderApp('cup');
-            };
-
-            const renderCarBox = (carId, match, roundIndex, matchIndex) => {
-                const config = getCarConfig(carId);
-                const isWinner = match.winnerId === carId;
-                const isMatchComplete = match.car1Id && match.car2Id;
-                const bgColor = config.color;
-
-                const glassStyle = `background-image: linear-gradient(to right, ${bgColor}D0, #ffffff30, ${bgColor}D0); background-color: ${isWinner ? `${bgColor}AA` : 'rgba(255, 255, 255, 0.1)'}; border-color: ${isWinner ? `${bgColor}` : 'rgba(255, 255, 255, 0.3)'};`;
-                const cursorClass = isMatchComplete ? 'cursor-pointer hover:scale-[1.03] active:scale-[0.98]' : 'cursor-default';
-
-                return `
-                    <div 
-                        onclick="${isMatchComplete ? `handleSelectWinner(${roundIndex}, ${matchIndex}, '${carId}')` : ''}"
-                        class="relative p-2 rounded-xl h-12 flex items-center justify-between overflow-hidden font-bold text-white transition-all duration-300 border shadow-md ${cursorClass} ${match.winnerId && match.winnerId !== carId ? 'opacity-50' : ''}"
-                        style="${glassStyle}"
-                    >
-                        ${renderLogoDisplay(config.logo, config.model, 'w-24 h-24', true, bgColor)}
-                        
-                        <div class="z-10 flex items-center space-x-2">
-                            <div class="w-6 h-6 flex items-center justify-center p-1 rounded-full bg-white/30">
-                                ${renderLogoDisplay(config.logo, config.model, 'w-5 h-5')}
-                            </div>
-                            <span class="text-sm truncate font-extrabold">${getModelInitials(config.model)}</span>
-                        </div>
-                        
-                        ${isWinner ? `<i data-lucide="trophy" class="w-5 h-5 z-10 text-white"></i>` : ''}
-                    </div>
-                `;
-            };
-
-            window.handleSelectWinner = handleSelectWinner;
-            window.handleInitCup = handleInitCup;
-
-            if (!isCupReady) {
-                return `<div class="glass-card p-6 text-center text-gray-400">Se requieren ${MAX_PARTICIPANTS} autos (actual: ${participantsToUse.length}) para iniciar la Copa.</div>`;
-            }
-
-            if (!isCupStarted) {
-                return `<div class="glass-card p-6 text-center"><p class="text-white mb-4">Presiona el botón para generar el sorteo inicial.</p><button onclick="handleInitCup()" class="px-4 py-2 rounded-xl text-white font-semibold bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/50">Iniciar Copa</button></div>`;
-            }
-
-            const cupRoundsHtml = cupData.rounds.map((round, rIndex) => `
-                <div class="flex flex-col space-y-4">
-                    <h3 class="text-lg font-semibold text-gray-200 mb-2 text-center border-b border-white/20 pb-1">${round.name}</h3>
-                    <div class="space-y-${rIndex < 3 ? '12' : '4'}" style="padding-top: ${rIndex * 2}rem;">
-                        ${round.matches.map((match, mIndex) => `
-                            <div class="space-y-2">
-                                ${renderCarBox(match.car1Id, { ...match, matchIndex: mIndex }, rIndex, mIndex)}
-                                ${renderCarBox(match.car2Id, { ...match, matchIndex: mIndex }, rIndex, mIndex)}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('');
-            
-            const winnerConfig = getCarConfig(cupData.winnerId);
-            const winnerBox = cupData.winnerId ? `
-                <div class="glass-card p-4 text-center" style="background-color: rgba(255, 215, 0, 0.5); box-shadow: 0 0 20px #FFD700;">
-                    <i data-lucide="trophy" class="w-8 h-8 text-yellow-200 mx-auto mb-2"></i>
-                    ${renderCarBox(cupData.winnerId, { winnerId: cupData.winnerId }, 4, 0)}
-                    <p class="text-xl font-extrabold mt-2 text-yellow-200">¡CAMPEÓN!</p>
-                </div>
-            ` : `<div class="glass-card bg-gray-800/30 p-4 text-center text-gray-500">Aún por definir</div>`;
-
-
-            return `
-                <div class="glass-card p-4 overflow-x-auto">
-                    <div class="flex justify-between items-start space-x-4 min-w-max">
-                        ${cupRoundsHtml}
-                        <div class="flex flex-col space-y-4 justify-center items-center h-full">
-                            <h3 class="text-lg font-semibold text-gray-200 mb-2 text-center border-b border-white/20 pb-1">Campeón</h3>
-                            <div class="pt-24 flex flex-col items-center">
-                                ${winnerBox}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        };
-
-        // --- TIME RACE TAB ---
-
-        const renderTimeRaceTab = () => {
-            const allAvailableCars = getAllAvailableCars();
-            
-            // Renderizado de Fila F1
-            const renderF1Row = (result) => {
-                const { position, model, brand, color, logo, time } = result;
-                const isPole = position === 1;
-                const isSecond = position === 2;
-                
-                const bgOpacity = isPole ? 'F0' : 'B0';
-                const rowStyle = `
-                    background-image: linear-gradient(to right, ${color}${bgOpacity}, #ffffff40, ${color}${bgOpacity});
-                    box-shadow: ${isPole ? '0 4px 10px rgba(255, 215, 0, 0.4)' : '0 2px 5px rgba(0, 0, 0, 0.3)'};
-                `;
-                
-                let positionBgColor = 'rgba(255, 255, 255, 0.9)'; // Default blanco
-                let positionTextColor = '#1f2937'; // Gris oscuro
-                if (isPole) {
-                    positionBgColor = '#FFD700'; // Dorado
-                } else if (isSecond) {
-                    positionBgColor = '#C0C0C0'; // Plateado
-                }
-
-                return `
-                    <div class="glass-card relative flex items-center p-3 mb-2 rounded-xl text-white font-poppins overflow-hidden" 
-                         style="${rowStyle}" 
-                         data-is-pole="${isPole}">
-
-                        ${renderLogoDisplay(logo, model, 'w-32 h-32', true, color)}
-                        
-                        <div class="z-10 flex items-center flex-1">
-                            <div class="w-12 h-12 flex-shrink-0 mr-4 relative flex items-center justify-center">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-lg font-black z-20 shadow-md" 
-                                    style="background-color: ${positionBgColor}; color: ${positionTextColor};">
-                                    ${position}
-                                </div>
-                            </div>
-                            
-                            <div class="w-10 flex-shrink-0 mr-4 p-1 bg-black/30 rounded-full flex items-center justify-center">
-                                ${renderLogoDisplay(logo, model, 'w-6 h-6')}
-                            </div>
-                            
-                            <div class="flex-1 text-lg font-bold truncate">
-                                ${model}
-                                <span class="text-xs font-light block opacity-70">${brand}</span>
-                            </div>
-                            
-                            <div class="w-32 text-right text-xl font-extrabold bg-black/30 p-1 rounded-lg">
-                                ${formatTime(time * 1000)}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            };
-
-            const sortedResults = [...timeRaceData.results]
-                .sort((a, b) => a.time - b.time)
-                .map((result, index) => ({
-                    ...result,
-                    ...getCarConfig(result.carId),
-                    position: index + 1,
-                }));
-
-            const optionsHtml = allAvailableCars.map(car => `
-                <option value="${car.id}" class="bg-gray-800 text-white">${car.model} (${car.brand})</option>
-            `).join('');
-
-            return `
-                <div class="glass-card p-6">
-                    <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                        <i data-lucide="trending-up" class="w-6 h-6 mr-2 text-red-400"></i> Control de Carrera y Tiempos
-                    </h2>
-                    
-                    <p id="timerace-error" class="mb-4 p-2 rounded-lg text-white" style="display: none;"></p>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                        
-                        <div class="flex flex-col items-center">
-                            <h3 class="text-xl font-semibold text-gray-200 mb-4">Cronómetro de Vuelta</h3>
-                            <div id="stopwatch-display" class="text-5xl sm:text-7xl font-mono font-black text-blue-300 bg-gray-900/50 p-4 rounded-xl shadow-inner">${formatTime(stopwatchTime)}</div>
-                            <div class="flex space-x-4 mt-4">
-                                <button onclick="stopwatchAction('start')" id="stopwatch-start" class="px-4 py-2 rounded-xl text-white font-semibold bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/50 w-24 flex items-center justify-center ${stopwatchRunning ? 'opacity-50 cursor-not-allowed' : ''}">
-                                    <i data-lucide="play" class="w-5 h-5 mr-1"></i> Start
-                                </button>
-                                <button onclick="stopwatchAction('stop')" id="stopwatch-stop" class="px-4 py-2 rounded-xl text-white font-semibold bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/50 w-24 flex items-center justify-center ${!stopwatchRunning ? 'opacity-50 cursor-not-allowed' : ''}">
-                                    <i data-lucide="pause" class="w-5 h-5 mr-1"></i> Stop
-                                </button>
-                                <button onclick="stopwatchAction('reset')" class="px-4 py-2 rounded-xl text-white font-semibold bg-gray-600 hover:bg-gray-700 shadow-lg shadow-gray-500/50 w-24 flex items-center justify-center">
-                                    <i data-lucide="square" class="w-5 h-5 mr-1"></i> Reset
-                                </button>
-                            </div>
-                            <p class="text-gray-400 text-sm mt-2">El tiempo se registra al presionar STOP.</p>
-                        </div>
-
-                        <div class='space-y-4'>
-                            <h3 class="text-xl font-semibold text-gray-200">Registro de Resultados</h3>
-                            
-                            <div class="relative">
-                                <label for="carSelect" class="block text-sm font-medium text-gray-300 mb-1">Auto Participante</label>
-                                <select id="carSelect" onchange="window.selectedCarId = this.value;" class="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white focus:ring-blue-400 focus:border-blue-400 transition-colors appearance-none" style="padding-right: 2.5rem;">
-                                    <option value="" class="bg-gray-800 text-gray-400">Selecciona un auto...</option>
-                                    ${optionsHtml}
-                                </select>
-                                <i data-lucide="chevron-down" class="absolute right-3 top-1/2 translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none"></i>
-                            </div>
-                            
-                            <div>
-                                <label for="timeDisplayInput" class="block text-sm font-medium text-gray-300 mb-1">Tiempo Registrado (s)</label>
-                                <input type="text" id="timeDisplayInput" value="${recordedTime !== null ? recordedTime.toFixed(3) : '---'}" readonly placeholder="0.000" class="w-full px-3 py-2 bg-white/10 border border-white/30 rounded-lg text-white font-mono focus:outline-none"/>
-                            </div>
-
-                            <div class="flex items-end space-x-2 pt-2">
-                                <button onclick="handleAddTimeClick()" id="add-time-button" class="px-4 py-2 rounded-xl text-white font-semibold transition-all duration-200 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg shadow-blue-500/50 w-full" disabled>
-                                    Registrar Vuelta
-                                </button>
-                                <button onclick="handleClearRaceClick()" class="p-2 rounded-xl text-red-400 hover:bg-red-500/20 transition-colors h-[42px] flex items-center justify-center" title="Reiniciar Carrera de Tiempos">
-                                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="glass-card p-6">
-                    <h2 class="text-2xl font-bold text-white mb-4">Tabla de Posiciones (Grid F1)</h2>
-                    <div class="max-h-[60vh] overflow-y-auto pr-2">
-                        ${sortedResults.length === 0 ? '<p class="text-gray-400">Aún no hay tiempos registrados. ¡Añade el primero!</p>' : sortedResults.map(renderF1Row).join('')}
-                    </div>
-                </div>
-            `;
-        };
-        
-        // --- STREET COUNTER TAB ---
-
-        const renderStreetCounterTab = () => {
-            // [Implementación omitida por brevedad, usa la versión anterior para funcionalidad]
-            return `<div class="glass-card p-6 text-white">Funcionalidad del contador de calle mantenida.</div>`;
-        };
-
-        // --- FIREBASE INICIALIZACIÓN Y LISTENERS ---
-
-        const initFirebase = () => {
-            if (firebaseConfig) {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                const authenticate = async () => {
-                    try {
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (error) {
-                        console.error("Error de autenticación:", error);
-                        await signInAnonymously(auth);
-                    }
-                };
-
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                    } else {
-                        userId = crypto.randomUUID();
-                    }
-                    document.getElementById('user-id-display').textContent = `Usuario ID: ${userId}`;
-                    isAuthReady = true;
-                    setupFirestoreListeners();
-                    renderApp();
+                setBracket({
+                    round1: round1,
+                    round2: Array(4).fill({ p1: null, p2: null, winner: null }),
+                    round3: Array(2).fill({ p1: null, p2: null, winner: null }),
+                    round4: Array(1).fill({ p1: null, p2: null, winner: null }),
+                    champion: null
                 });
+            };
 
-                authenticate();
-            } else {
-                console.error("Firebase no configurado. La persistencia estará deshabilitada.");
-                userId = 'DEMO-USER';
-                isAuthReady = true;
-                document.getElementById('user-id-display').textContent = `Usuario DEMO: ${userId}`;
-                renderApp();
-            }
+            const advanceWinner = (roundKey, matchIndex, winner) => {
+                if (!bracket) return;
+                const newBracket = { ...bracket };
+                
+                newBracket[roundKey][matchIndex] = { ...newBracket[roundKey][matchIndex], winner };
+
+                let nextRoundKey = '';
+                let nextMatchIndex = Math.floor(matchIndex / 2);
+                let playerSlot = matchIndex % 2 === 0 ? 'p1' : 'p2';
+
+                if (roundKey === 'round1') nextRoundKey = 'round2';
+                else if (roundKey === 'round2') nextRoundKey = 'round3';
+                else if (roundKey === 'round3') nextRoundKey = 'round4';
+                else if (roundKey === 'round4') {
+                    newBracket.champion = winner;
+                    setBracket(newBracket);
+                    return;
+                }
+
+                if (nextRoundKey) {
+                    const nextMatch = newBracket[nextRoundKey][nextMatchIndex] || { p1: null, p2: null, winner: null };
+                    newBracket[nextRoundKey][nextMatchIndex] = { ...nextMatch, [playerSlot]: winner };
+                }
+
+                setBracket(newBracket);
+            };
+
+            const BracketMatch = ({ match, round, index }) => (
+                <div className="flex flex-col gap-2 bg-slate-900/50 p-2 rounded-lg border border-white/10 mb-4 w-40 backdrop-blur-sm relative shadow-lg">
+                    {[match.p1, match.p2].map((car, idx) => {
+                        const isWinner = match.winner?.id === car?.id;
+                        const carStyle = car ? {
+                            background: isWinner ? getCarGradient(car.color) : (car ? `linear-gradient(135deg, ${car.color}10 0%, ${car.color}30 100%)` : 'rgba(255,255,255,0.05)'),
+                            borderColor: car ? `${car.color}60` : 'transparent',
+                            boxShadow: isWinner ? getCarShadow(car.color) : 'none'
+                        } : {};
+
+                        return (
+                        <div 
+                            key={idx}
+                            onClick={() => {
+                                if (car && !match.winner) advanceWinner(round, index, car);
+                            }}
+                            className={`
+                                h-10 flex items-center gap-2 px-2 rounded cursor-pointer transition-all border relative overflow-hidden group
+                                ${isWinner ? 'text-white scale-105 z-10' : 'text-gray-400 hover:bg-white/10'}
+                                ${!car ? 'opacity-30 pointer-events-none' : ''}
+                            `}
+                            style={carStyle}
+                        >
+                            {car ? (
+                                <>
+                                    <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex-shrink-0 relative border border-white/20">
+                                        {car.logo && <img src={car.logo} className="w-full h-full object-contain absolute inset-0 p-0.5" alt="" />}
+                                    </div>
+                                    <span className={`text-[10px] truncate ${headerFontClass}`}>{car.brand}</span>
+                                    {isWinner && <div className="absolute right-2 text-yellow-400"><Trophy size={10} /></div>}
+                                </>
+                            ) : <span className="text-[10px]">Esperando...</span>}
+                        </div>
+                    )})}
+                </div>
+            );
+
+            return (
+                <div className="w-full h-full overflow-auto p-8 relative no-scrollbar">
+                {!bracket ? (
+                    <div className="h-full flex flex-col items-center justify-center">
+                        <Trophy className="w-32 h-32 text-yellow-500 drop-shadow-[0_0_40px_rgba(234,179,8,0.4)] mb-6 animate-pulse" />
+                        <h2 className={`text-4xl text-white mb-4 ${headerFontClass}`}>Copa MoonRacers</h2>
+                        <p className="text-blue-200 mb-8 max-w-md text-center">Selecciona 16 autos del garaje y compite en un torneo eliminatorio.</p>
+                        <button onClick={startTournament} className="px-8 py-4 bg-gradient-to-r from-yellow-600 to-orange-500 text-white font-bold rounded-xl text-xl hover:scale-105 transition-transform shadow-[0_0_30px_rgba(234,179,8,0.4)]">
+                        COMENZAR TORNEO
+                        </button>
+                        <div className="mt-4 text-sm text-slate-400 bg-slate-900/50 px-4 py-2 rounded-full border border-white/10">Autos disponibles: <span className="text-white font-bold">{cars.length}</span> / 16</div>
+                    </div>
+                ) : (
+                    <div className="flex justify-between min-w-[1000px] h-full items-center pl-8">
+                        {/* Octavos */}
+                        <div className="flex flex-col justify-around h-full">
+                            <h3 className="text-center text-blue-400 text-xs font-bold uppercase mb-4 tracking-widest">Octavos</h3>
+                            {bracket.round1.map((m, i) => <BracketMatch key={i} match={m} round="round1" index={i} />)}
+                        </div>
+                        
+                        {/* Cuartos */}
+                        <div className="flex flex-col justify-around h-[80%] relative">
+                            <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent -translate-x-8"></div>
+                            <h3 className="text-center text-blue-400 text-xs font-bold uppercase mb-4 tracking-widest">Cuartos</h3>
+                            {bracket.round2.map((m, i) => <BracketMatch key={i} match={m} round="round2" index={i} />)}
+                        </div>
+
+                        {/* Semis */}
+                        <div className="flex flex-col justify-around h-[60%] relative">
+                            <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent -translate-x-8"></div>
+                            <h3 className="text-center text-blue-400 text-xs font-bold uppercase mb-4 tracking-widest">Semifinal</h3>
+                            {bracket.round3.map((m, i) => <BracketMatch key={i} match={m} round="round3" index={i} />)}
+                        </div>
+
+                        {/* Final */}
+                        <div className="flex flex-col justify-center h-full relative">
+                            <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent -translate-x-8"></div>
+                            <h3 className="text-center text-yellow-400 text-sm font-bold uppercase mb-4 tracking-widest">GRAN FINAL</h3>
+                            <BracketMatch match={bracket.round4[0]} round="round4" index={0} />
+                        </div>
+
+                        {/* Champion */}
+                        <div className="flex flex-col justify-center items-center h-full w-64 pl-8 border-l border-white/5 bg-gradient-to-r from-white/5 to-transparent">
+                            {bracket.champion ? (
+                                <div className="flex flex-col items-center animate-bounce-in text-center p-6">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-yellow-500 blur-[40px] opacity-30"></div>
+                                        <Trophy className="w-24 h-24 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)] mb-6 relative z-10" />
+                                    </div>
+                                    <h2 className={`text-3xl text-white text-center mb-2 ${headerFontClass}`}>{bracket.champion.brand}</h2>
+                                    <h3 className="text-xl text-blue-300 text-center uppercase tracking-widest">{bracket.champion.model}</h3>
+                                    <div className="mt-6 px-6 py-2 bg-gradient-to-r from-yellow-600 to-yellow-500 text-white rounded-full text-xs font-bold tracking-[0.2em] uppercase shadow-lg">
+                                        Campeón
+                                    </div>
+                                    <button onClick={() => setBracket(null)} className="mt-12 text-slate-400 hover:text-white text-xs border-b border-transparent hover:border-white transition-all pb-1">Reiniciar Copa</button>
+                                </div>
+                            ) : (
+                                <div className="w-32 h-32 rounded-full border-2 border-dashed border-white/10 flex items-center justify-center">
+                                    <Trophy className="w-10 h-10 text-white/10" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+                </div>
+            );
         };
 
-        const setupFirestoreListeners = () => {
-            if (!db || !userId) return;
+        // 3. TORNEO (Tabla de Posiciones)
+        const TimeTrial = ({ cars }) => {
+            const [entries, setEntries] = useState([]);
+            const [selectedCarId, setSelectedCarId] = useState('');
+            const intervalRef = useRef(null);
 
-            // Sincronizar Autos (Garaje)
-            onSnapshot(doc(db, `artifacts/${appId}/users/${userId}/cars`, 'user_cars_list'), (docSnap) => {
-                if (docSnap.exists()) {
-                    // Solo autos de usuario (no genéricos)
-                    cars = docSnap.data().list.filter(car => !car.isGeneric) || [];
-                } else {
-                    cars = [];
-                }
-                renderApp(activeTab);
-            }, (e) => console.error("Error fetching cars data:", e));
-
-            // Sincronizar Copa
-            onSnapshot(doc(db, `artifacts/${appId}/users/${userId}/cup`, 'cup_state'), (docSnap) => {
-                if (docSnap.exists()) {
-                    cupData = docSnap.data();
-                } else {
-                    cupData = { participants: [], rounds: [], winnerId: null };
-                }
-                renderApp(activeTab);
-            }, (e) => console.error("Error fetching cup data:", e));
-            
-            // Sincronizar Carrera de Tiempos
-            onSnapshot(doc(db, `artifacts/${appId}/users/${userId}/timeRace`, 'race_state'), (docSnap) => {
-                if (docSnap.exists()) {
-                    timeRaceData = docSnap.data();
-                } else {
-                    timeRaceData = { results: [] };
-                }
-                renderApp(activeTab);
-            }, (e) => console.error("Error fetching time race data:", e));
-        };
-
-        // --- MANEJADORES DE EVENTOS DEL CRONÓMETRO ---
-
-        window.stopwatchAction = (action) => {
-            const display = document.getElementById('stopwatch-display');
-            const startBtn = document.getElementById('stopwatch-start');
-            const stopBtn = document.getElementById('stopwatch-stop');
-
-            if (action === 'start' && !stopwatchRunning) {
-                stopwatchRunning = true;
-                stopwatchInterval = setInterval(() => {
-                    stopwatchTime += 10;
-                    display.textContent = formatTime(stopwatchTime);
+            useEffect(() => {
+                intervalRef.current = setInterval(() => {
+                setEntries(prevEntries => 
+                    prevEntries.map(entry => {
+                    if (entry.status === 'running') {
+                        return { ...entry, elapsed: Date.now() - entry.startTime };
+                    }
+                    return entry;
+                    })
+                );
                 }, 10);
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                recordedTime = null;
-                document.getElementById('timeDisplayInput').value = '---';
-                document.getElementById('add-time-button').disabled = true;
+                return () => clearInterval(intervalRef.current);
+            }, []);
 
-            } else if (action === 'stop' && stopwatchRunning) {
-                clearInterval(stopwatchInterval);
-                stopwatchRunning = false;
-                recordedTime = stopwatchTime / 1000;
-                document.getElementById('timeDisplayInput').value = recordedTime.toFixed(3);
+            const addCarToRace = () => {
+                if (!selectedCarId) return;
+                const carToAdd = cars.find(c => c.id === parseInt(selectedCarId));
+                if (entries.find(e => e.car.id === carToAdd.id)) return alert("Auto ya está en la pista.");
                 
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                
-                // Habilitar botón de registro si hay auto seleccionado
-                if (window.selectedCarId) {
-                    document.getElementById('add-time-button').disabled = false;
+                setEntries([...entries, { 
+                    car: carToAdd, 
+                    status: 'idle', 
+                    elapsed: 0, 
+                    startTime: 0,
+                    history: []
+                }]);
+                setSelectedCarId('');
+            };
+
+            const toggleTimer = (id) => {
+                setEntries(prev => prev.map(entry => {
+                if (entry.car.id !== id) return entry;
+
+                if (entry.status === 'idle' || entry.status === 'paused') {
+                    return { ...entry, status: 'running', startTime: Date.now() - entry.elapsed };
+                } else if (entry.status === 'running') {
+                    return { ...entry, status: 'paused' };
                 }
+                return entry;
+                }));
+            };
 
-            } else if (action === 'reset') {
-                clearInterval(stopwatchInterval);
-                stopwatchRunning = false;
-                stopwatchTime = 0;
-                recordedTime = null;
-                display.textContent = formatTime(stopwatchTime);
+            const resetTimer = (id) => {
+                setEntries(prev => prev.map(entry => {
+                if (entry.car.id !== id) return entry;
+                return { ...entry, status: 'idle', elapsed: 0, startTime: 0 };
+                }));
+            };
 
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                document.getElementById('timeDisplayInput').value = '---';
-                document.getElementById('add-time-button').disabled = true;
-            }
+            const removeEntry = (id) => {
+                setEntries(prev => prev.filter(e => e.car.id !== id));
+            };
+
+            const sortedEntries = [...entries].sort((a, b) => {
+                if (a.elapsed === 0 && b.elapsed === 0) return 0;
+                if (a.elapsed === 0) return 1;
+                if (b.elapsed === 0) return -1;
+                return a.elapsed - b.elapsed;
+            });
+
+            return (
+                <div className="w-full h-full p-6 flex flex-col md:flex-row gap-6">
+                    
+                    {/* Panel Izquierdo */}
+                    <div className="w-full md:w-1/3 flex flex-col gap-4">
+                        <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/10 backdrop-blur-md shadow-xl">
+                            <h3 className={`text-xl text-white mb-4 flex items-center gap-2 ${headerFontClass}`}>
+                                <Car className="text-blue-400" /> Nuevo Corredor
+                            </h3>
+                            <div className="flex gap-2">
+                                <div className="flex-1 relative">
+                                    <select 
+                                        value={selectedCarId} 
+                                        onChange={(e) => setSelectedCarId(e.target.value)}
+                                        className="w-full bg-slate-800 text-white rounded-lg px-3 py-3 outline-none border border-slate-700 appearance-none cursor-pointer hover:border-blue-500 transition-colors"
+                                    >
+                                        <option value="">Selecciona un auto...</option>
+                                        {cars.map(c => <option key={c.id} value={c.id}>{c.brand} {c.model}</option>)}
+                                    </select>
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                        <ChevronDown size={16} />
+                                    </div>
+                                </div>
+                                <button onClick={addCarToRace} className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-lg transition-colors shadow-lg shadow-blue-600/20">
+                                    <Plus />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-auto space-y-3 pr-2 no-scrollbar">
+                        {entries.map((entry) => (
+                            <div key={entry.car.id} className="p-4 rounded-xl relative group transition-all" 
+                                style={{
+                                    background: `linear-gradient(90deg, ${entry.car.color}20 0%, rgba(15,23,42,0.8) 100%)`, 
+                                    borderLeft: `4px solid ${entry.car.color}`,
+                                    borderTop: '1px solid rgba(255,255,255,0.05)',
+                                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                    borderRight: '1px solid rgba(255,255,255,0.05)'
+                                }}>
+                                <button onClick={() => removeEntry(entry.car.id)} className="absolute top-2 right-2 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><X size={16}/></button>
+                                <div className="flex justify-between items-center mb-3">
+                                    <div className="flex items-center gap-3">
+                                        {entry.car.logo && <img src={entry.car.logo} className="w-8 h-8 object-contain opacity-80" />}
+                                        <div>
+                                            <span className={`text-xs block text-blue-300 uppercase opacity-80 ${headerFontClass}`}>{entry.car.brand}</span>
+                                            <div className="text-white font-bold text-sm">{entry.car.model}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-black/30 rounded-lg p-2 mb-3 text-center border border-white/5">
+                                    <div className="font-mono text-3xl text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+                                        {formatTime(entry.elapsed)}
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => toggleTimer(entry.car.id)}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-xs transition-all shadow-lg ${entry.status === 'running' ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}
+                                    >
+                                        {entry.status === 'running' ? <><Pause size={14}/> DETENER</> : <><Play size={14}/> INICIAR</>}
+                                    </button>
+                                    <button onClick={() => resetTimer(entry.car.id)} className="p-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 border border-white/5">
+                                        <RotateCcw size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+
+                    {/* Scoreboard */}
+                    <div className="flex-1 bg-slate-900/60 rounded-3xl overflow-hidden border border-white/10 backdrop-blur-xl flex flex-col shadow-2xl">
+                        <div className="bg-[#1e1b4b] p-6 flex items-center justify-between border-b border-white/10 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-blue-600/20 to-transparent"></div>
+                            <div className="flex items-center gap-4 relative z-10">
+                                <div className="bg-gradient-to-tr from-cyan-400 to-blue-600 p-2.5 rounded-xl shadow-lg shadow-blue-500/30">
+                                    <Timer className="text-white w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h2 className={`text-2xl text-white leading-none uppercase tracking-tighter mb-1 ${headerFontClass}`}>Torneo</h2>
+                                    <span className="text-xs text-cyan-400 font-bold uppercase tracking-[0.2em]">Clasificación Oficial</span>
+                                </div>
+                            </div>
+                            <div className={`text-white/10 text-5xl select-none ${headerFontClass}`}>MR</div>
+                        </div>
+
+                        <div className="flex-1 overflow-auto no-scrollbar p-4">
+                        <table className="w-full text-left border-collapse border-spacing-y-2 border-separate">
+                            <thead className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">
+                                <tr>
+                                    <th className="pb-4 pl-4 text-center">Pos</th>
+                                    <th className="pb-4">Corredor</th>
+                                    <th className="pb-4 text-right">Tiempo</th>
+                                    <th className="pb-4 pr-4 text-center">Dif</th>
+                                </tr>
+                            </thead>
+                            <tbody className="space-y-2">
+                            {sortedEntries.map((entry, idx) => {
+                                const isLeader = idx === 0;
+                                const gap = isLeader ? '-' : `+${((entry.elapsed - sortedEntries[0].elapsed)/1000).toFixed(2)}`;
+                                const hasTime = entry.elapsed > 0;
+
+                                return (
+                                <tr key={entry.car.id} className="relative group transform transition-transform duration-200 hover:scale-[1.01]">
+                                    <td colSpan="4" className="p-0">
+                                        <div className="flex items-center p-2 rounded-xl relative overflow-hidden mb-2"
+                                            style={{
+                                                background: getCarGradient(entry.car.color),
+                                                border: getCarBorder(entry.car.color),
+                                                boxShadow: getCarShadow(entry.car.color),
+                                            }}
+                                        >
+                                            {/* Watermark Logo */}
+                                            {entry.car.logo && (
+                                                <div 
+                                                    className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 bg-no-repeat bg-contain transform rotate-12 pointer-events-none" 
+                                                    style={{backgroundImage: `url(${entry.car.logo})`}}
+                                                ></div>
+                                            )}
+
+                                            <div className="w-16 flex-shrink-0 text-center relative z-10">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm mx-auto shadow-lg ${isLeader && hasTime ? 'bg-gradient-to-br from-yellow-300 to-yellow-600 text-black' : 'bg-black/40 text-white border border-white/10'}`}>
+                                                    {idx + 1}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex-1 flex items-center gap-4 relative z-10 pl-2">
+                                                <div className="w-10 h-10 bg-white/10 rounded-full p-1 border border-white/20 backdrop-blur-sm">
+                                                    {entry.car.logo && <img src={entry.car.logo} className="w-full h-full object-contain" />}
+                                                </div>
+                                                <div>
+                                                    <div className={`text-white text-lg leading-none mb-1 ${headerFontClass}`}>{entry.car.brand}</div>
+                                                    <div className="text-xs text-blue-100 opacity-80 uppercase tracking-wider font-medium">{entry.car.model}</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="text-right px-4 relative z-10">
+                                                <div className={`font-mono font-bold text-xl tracking-tight ${isLeader && hasTime ? 'text-yellow-300 drop-shadow-[0_0_10px_rgba(253,224,71,0.5)]' : 'text-white'}`}>
+                                                    {hasTime ? formatTime(entry.elapsed) : '--:--:--'}
+                                                </div>
+                                            </div>
+
+                                            <div className="w-20 text-center text-xs font-mono font-bold text-white/70 relative z-10 bg-black/20 py-1 rounded mx-2">
+                                                {hasTime ? gap : '-'}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                )
+                            })}
+                            {entries.length === 0 && (
+                                <tr>
+                                <td colSpan="4" className="py-20 text-center text-slate-500 italic border-2 border-dashed border-slate-800 rounded-xl">
+                                    <Car className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                                    No hay autos en la pista.
+                                </td>
+                                </tr>
+                            )}
+                            </tbody>
+                        </table>
+                        </div>
+                    </div>
+                </div>
+            );
         };
-        
-        window.handleAddTimeClick = async () => {
-             if (!window.selectedCarId || recordedTime === null || recordedTime <= 0) return;
-             
-             document.getElementById('add-time-button').disabled = true;
 
-             const timeInSeconds = recordedTime;
-             const newEntry = { carId: window.selectedCarId, time: timeInSeconds };
-             let newResults = [...timeRaceData.results];
-             
-             const existingIndex = newResults.findIndex(r => r.carId === window.selectedCarId);
+        // 4. DUELO CALLEJERO (Contador)
+        const StreetCounter = ({ cars }) => {
+            const [session, setSession] = useState({ active: false, winner: null });
+            const [contestants, setContestants] = useState([
+                { id: 1, name: 'Marca A', count: 0, color: '#3b82f6', logo: null },
+                { id: 2, name: 'Marca B', count: 0, color: '#dc2626', logo: null }
+            ]);
+            const [editingNames, setEditingNames] = useState(false);
 
-             if (existingIndex !== -1) {
-                 if (timeInSeconds < newResults[existingIndex].time) {
-                     newResults[existingIndex].time = timeInSeconds;
-                 } else {
-                     window.showError("timerace", `El tiempo registrado (${timeInSeconds.toFixed(3)}s) no es mejor que el actual (${newResults[existingIndex].time.toFixed(3)}s).`);
-                     document.getElementById('add-time-button').disabled = false;
-                     return;
-                 }
-             } else {
-                 newResults.push(newEntry);
-             }
-
-             timeRaceData = { results: newResults };
-             await setDoc(doc(db, `artifacts/${appId}/users/${userId}/timeRace`, 'race_state'), timeRaceData);
-
-             window.showError("timerace", "Tiempo registrado con éxito.", 'bg-green-800/50');
-             recordedTime = null;
-             window.selectedCarId = '';
-             document.getElementById('carSelect').value = '';
-             document.getElementById('timeDisplayInput').value = '---';
-             renderApp('timerace');
-        };
-
-        window.handleClearRaceClick = async () => {
-             timeRaceData = { results: [] };
-             await setDoc(doc(db, `artifacts/${appId}/users/${userId}/timeRace`, 'race_state'), timeRaceData);
-             window.showError("timerace", "Carrera de tiempos reiniciada.", 'bg-orange-800/50');
-             renderApp('timerace');
-        };
-
-
-        // --- MANEJADOR DE CAMBIO DE PESTAÑA Y SETUP ---
-
-        window.setTab = (tab) => {
-            renderApp(tab);
-        };
-        
-        const attachEventListeners = () => {
-            if (activeTab === 'timerace') {
-                const selectElement = document.getElementById('carSelect');
-                if (selectElement) {
-                     selectElement.value = window.selectedCarId || '';
-                     selectElement.onchange = (e) => {
-                         window.selectedCarId = e.target.value;
-                         if (recordedTime !== null) {
-                              document.getElementById('add-time-button').disabled = !window.selectedCarId;
-                         }
-                     };
+            const toggleSession = () => {
+                if (session.active) {
+                const winner = contestants[0].count > contestants[1].count ? contestants[0] : 
+                                contestants[1].count > contestants[0].count ? contestants[1] : { name: 'Empate' };
+                setSession({ active: false, winner });
+                } else {
+                setContestants(prev => prev.map(c => ({...c, count: 0})));
+                setSession({ active: true, winner: null });
                 }
-                // Asegurar que el botón de registro esté correctamente deshabilitado/habilitado
-                const addButton = document.getElementById('add-time-button');
-                if (addButton) {
-                    addButton.disabled = !window.selectedCarId || recordedTime === null;
-                }
+            };
 
-            } else if (activeTab === 'garage') {
-                // Re-inicializar el estado del formulario en el DOM
-                window.newCar = window.newCar || { id: '', brand: '', model: '', color: '#3b82f6', logo: '🚗' };
-                document.getElementById('brandInput').value = window.newCar.brand;
-                document.getElementById('modelInput').value = window.newCar.model;
-                document.getElementById('colorPicker').value = window.newCar.color;
-                document.getElementById('colorHex').value = window.newCar.color;
-                document.getElementById('logoInput').value = window.newCar.logo;
-            }
+            const increment = (idx) => {
+                if (!session.active) return;
+                const newC = [...contestants];
+                newC[idx].count++;
+                setContestants(newC);
+            };
+
+            const updateName = (idx, val) => {
+                const newC = [...contestants];
+                newC[idx].name = val;
+                const foundCar = cars.find(c => c.brand.toLowerCase().includes(val.toLowerCase()) || c.model.toLowerCase().includes(val.toLowerCase()));
+                if (foundCar) {
+                newC[idx].color = foundCar.color;
+                newC[idx].logo = foundCar.logo;
+                } else {
+                newC[idx].color = idx === 0 ? '#3b82f6' : '#dc2626';
+                newC[idx].logo = null;
+                }
+                setContestants(newC);
+            };
+
+            return (
+                <div className="w-full h-full flex flex-col items-center justify-center p-8 relative overflow-hidden">
+                    {/* Background Grid */}
+                    <div className="absolute inset-0 opacity-20 pointer-events-none" style={{backgroundImage: 'radial-gradient(circle, #3b82f6 1px, transparent 1px)', backgroundSize: '30px 30px'}}></div>
+
+                    <div className="bg-slate-900/80 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl max-w-4xl w-full text-center relative z-10">
+                        <div className="mb-10">
+                            <h2 className={`text-3xl text-white flex justify-center items-center gap-3 ${headerFontClass} mb-2`}>
+                            <Users className="text-blue-500" /> Duelo Callejero
+                            </h2>
+                            <p className="text-blue-300 text-sm uppercase tracking-widest font-bold opacity-60">Conteo en tiempo real</p>
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-8 items-center justify-center mb-12">
+                            {contestants.map((contestant, idx) => (
+                            <div key={contestant.id} className="flex-1 w-full group">
+                                <div className="h-12 flex items-center justify-center mb-4">
+                                    {editingNames && !session.active ? (
+                                        <input value={contestant.name} onChange={e => updateName(idx, e.target.value)} className="bg-slate-800 text-white text-center p-2 rounded w-full border border-blue-500/50 outline-none focus:border-blue-400"/>
+                                    ) : (
+                                        <h3 className={`text-3xl text-white ${headerFontClass} drop-shadow-md`}>{contestant.name}</h3>
+                                    )}
+                                </div>
+                                
+                                <button 
+                                    onClick={() => increment(idx)}
+                                    disabled={!session.active}
+                                    className={`w-full h-56 rounded-3xl flex items-center justify-center text-9xl font-black transition-all transform duration-100 relative overflow-hidden border-4 ${session.active ? 'cursor-pointer active:scale-95 hover:-translate-y-2' : 'cursor-not-allowed opacity-50 grayscale'}`}
+                                    style={{
+                                        background: getCarGradient(contestant.color),
+                                        borderColor: `${contestant.color}80`,
+                                        boxShadow: session.active ? `0 20px 50px -10px ${contestant.color}50` : 'none',
+                                        color: 'white'
+                                    }}
+                                >
+                                    {/* Logo Overlay */}
+                                    {contestant.logo && (
+                                        <div 
+                                            className="absolute inset-0 opacity-20 bg-no-repeat bg-center bg-contain z-0 pointer-events-none transform group-hover:scale-110 transition-transform duration-500" 
+                                            style={{backgroundImage: `url(${contestant.logo})`}}
+                                        ></div>
+                                    )}
+                                    <span className="relative z-10 drop-shadow-2xl">{contestant.count}</span>
+                                </button>
+                            </div>
+                            ))}
+                            
+                            {/* VS */}
+                            <div className="flex flex-col items-center justify-center pt-12">
+                                <div className={`text-4xl text-slate-500 italic opacity-50 font-black`}>VS</div>
+                            </div>
+                        </div>
+
+                        {/* Winner Display */}
+                        {session.winner && !session.active && (
+                            <div className="mb-8 p-6 bg-gradient-to-r from-yellow-900/40 to-yellow-600/20 border border-yellow-500/50 rounded-2xl animate-bounce-in max-w-lg mx-auto">
+                                <span className="text-yellow-400 font-bold uppercase tracking-[0.3em] text-xs mb-2 block">Ganador de la Tanda</span>
+                                <div className={`text-4xl text-white ${headerFontClass} drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]`}>{session.winner.name}</div>
+                            </div>
+                        )}
+
+                        {/* Controls */}
+                        <div className="flex justify-center gap-4 mt-8">
+                            <button onClick={toggleSession} className={`px-12 py-4 rounded-xl font-bold text-lg transition-all shadow-lg hover:-translate-y-1 ${session.active ? 'bg-slate-800 text-red-400 border border-red-500/30 hover:bg-slate-700' : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-blue-500/30'}`}>
+                            {session.active ? 'FINALIZAR CONTEO' : 'INICIAR CONTEO'}
+                            </button>
+                            {!session.active && (
+                            <button onClick={() => setEditingNames(!editingNames)} className="p-4 bg-slate-800 text-slate-300 border border-slate-700 rounded-xl hover:bg-slate-700 hover:text-white transition-all hover:-translate-y-1">
+                                <Edit3 />
+                            </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
-        window.onload = initFirebase;
+        // --- APP CONTAINER ---
+        const MoonRacers = () => {
+            const [activeTab, setActiveTab] = useState('garage');
+            const [cars, setCars] = useState(INITIAL_CARS);
+
+            return (
+                <div className="w-full h-screen bg-slate-950 font-sans text-slate-200 overflow-hidden flex flex-col">
+                    
+                    {/* Background Gradient General */}
+                    <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-[#0f172a] to-[#020617] z-0 pointer-events-none"></div>
+
+                    {/* Header / Nav */}
+                    <nav className="relative z-50 h-24 bg-white/5 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-8 shadow-2xl">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-xl flex items-center justify-center transform -rotate-3 shadow-lg shadow-blue-500/20 border border-white/10">
+                                <Car className="text-white w-7 h-7" />
+                            </div>
+                            <h1 className={`text-3xl text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-blue-200 ${headerFontClass} drop-shadow-sm`}>
+                                MOON<span className="text-blue-500">RACERS</span>
+                            </h1>
+                        </div>
+
+                        <div className="flex bg-black/20 p-1.5 rounded-2xl border border-white/5 backdrop-blur-md">
+                        {[
+                            { id: 'garage', label: 'Garaje', icon: Target },
+                            { id: 'copa', label: 'Copa', icon: Trophy },
+                            { id: 'chrono', label: 'Torneo', icon: Timer },
+                            { id: 'street', label: 'Calle', icon: Users },
+                        ].map(tab => (
+                            <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25 scale-105' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                            >
+                            <tab.icon size={18} strokeWidth={2.5} />
+                            <span className="hidden md:block tracking-wide">{tab.label}</span>
+                            </button>
+                        ))}
+                        </div>
+                    </nav>
+
+                    {/* Main Content Area */}
+                    <main className="relative z-10 flex-1 overflow-hidden">
+                        {activeTab === 'garage' && <Garage cars={cars} setCars={setCars} />}
+                        {activeTab === 'copa' && <Tournament cars={cars} />}
+                        {activeTab === 'chrono' && <TimeTrial cars={cars} />}
+                        {activeTab === 'street' && <StreetCounter cars={cars} />}
+                    </main>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<MoonRacers />);
     </script>
 </body>
 </html>
