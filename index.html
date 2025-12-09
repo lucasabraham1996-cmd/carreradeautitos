@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MoonRacers Online</title>
     
     <!-- React & ReactDOM -->
@@ -15,11 +15,11 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Firebase SDK (Compat versions for simple HTML usage) -->
+    <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
-    <!-- Google Fonts (Noto Sans) -->
+    <!-- Google Fonts -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap');
         
@@ -27,45 +27,47 @@
             font-family: 'Noto Sans', sans-serif;
             margin: 0;
             overflow: hidden;
-            background-color: #020617; /* Slate 950 */
+            background-color: #020617;
+            -webkit-tap-highlight-color: transparent;
         }
         
-        /* Animaciones personalizadas */
+        /* Animaciones */
         @keyframes shine {
             0% { left: -100%; opacity: 0; }
             50% { opacity: 0.5; }
             100% { left: 200%; opacity: 0; }
         }
-        
         @keyframes bounceIn {
-            0% { transform: scale(0.3); opacity: 0; }
-            50% { transform: scale(1.05); opacity: 1; }
-            70% { transform: scale(0.9); }
-            100% { transform: scale(1); }
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
-        .animate-shine {
-            animation: shine 2s infinite linear;
-        }
-
-        .animate-bounce-in {
-            animation: bounceIn 0.8s cubic-bezier(0.215, 0.610, 0.355, 1.000) both;
-        }
-
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+        .animate-shine { animation: shine 2s infinite linear; }
+        .animate-bounce-in { animation: bounceIn 0.2s cubic-bezier(0.215, 0.610, 0.355, 1.000) both; }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out forwards; }
+        
+        /* Scrollbar oculta pero funcional */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Estilos móviles */
+        .mobile-height { height: 100dvh; } /* Dynamic Viewport Height para móviles */
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo, useContext, createContext } = React;
 
         // --- CONFIGURACIÓN DE FIREBASE ---
         const firebaseConfig = {
@@ -78,21 +80,19 @@
             measurementId: "G-6E06MR06G9"
         };
 
-        // Inicializar Firebase solo una vez
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.firestore();
 
-        // --- DEFINICIÓN DE ÍCONOS ---
+        // --- COMPONENTES UI GLOBALES ---
+        
+        // Iconos
         const Icon = ({ children, size = 24, className = "", ...props }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
-                {children}
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
         );
-
         const Trophy = (props) => <Icon {...props}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></Icon>;
-        const Timer = (props) => <Icon {...props}><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></Icon>;
+        const TimerIcon = (props) => <Icon {...props}><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></Icon>;
         const CarIcon = (props) => <Icon {...props}><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" /><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" /></Icon>;
         const Users = (props) => <Icon {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></Icon>;
         const Plus = (props) => <Icon {...props}><path d="M5 12h14" /><path d="M12 5v14" /></Icon>;
@@ -106,28 +106,69 @@
         const X = (props) => <Icon {...props}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></Icon>;
         const Target = (props) => <Icon {...props}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></Icon>;
         const ChevronDown = (props) => <Icon {...props}><path d="m6 9 6 6 6-6" /></Icon>;
-        const CloudUpload = (props) => <Icon {...props}><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></Icon>;
+        const SaveIcon = (props) => <Icon {...props}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></Icon>;
+        const ListCheck = (props) => <Icon {...props}><path d="M16 6h6"/><path d="M16 12h6"/><path d="M16 18h6"/><path d="M3 6h6"/><path d="M3 12h6"/><path d="M3 18h6"/></Icon>;
+        const MousePointerClick = (props) => <Icon {...props}><path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/></Icon>;
+        const Medal = (props) => <Icon {...props}><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/></Icon>;
+        const BarChart = (props) => <Icon {...props}><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></Icon>;
+        const History = (props) => <Icon {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></Icon>;
+        const ArrowLeft = (props) => <Icon {...props}><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></Icon>;
 
+        // --- SISTEMAS DE MODAL Y TOAST ---
+        
+        // Contexto para Toasts (Notificaciones)
+        const ToastContext = createContext();
+        const ToastProvider = ({ children }) => {
+            const [toast, setToast] = useState(null);
+            const showToast = (msg, type = 'success') => {
+                setToast({ msg, type });
+                setTimeout(() => setToast(null), 3000);
+            };
+            return (
+                <ToastContext.Provider value={showToast}>
+                    {children}
+                    {toast && (
+                        <div className="fixed bottom-20 md:bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-slide-up">
+                            <div className={`px-6 py-3 rounded-full font-bold shadow-2xl border ${toast.type === 'error' ? 'bg-red-900/90 border-red-500 text-white' : 'bg-green-900/90 border-green-500 text-white'} backdrop-blur-md`}>
+                                {toast.msg}
+                            </div>
+                        </div>
+                    )}
+                </ToastContext.Provider>
+            );
+        };
+        const useToast = () => useContext(ToastContext);
 
-        // --- DATA INICIAL (Seed para cuando la DB está vacía) ---
-        const INITIAL_CARS_SEED = [
-            { model: '911 GT3 RS', brand: 'Porsche', color: '#ef4444', logo: 'https://upload.wikimedia.org/wikipedia/de/thumb/2/2d/Porsche_Wappen.svg/1200px-Porsche_Wappen.svg.png' },
-            { model: 'F40', brand: 'Ferrari', color: '#dc2626', logo: 'https://upload.wikimedia.org/wikipedia/de/c/c0/Scuderia_Ferrari_Logo.svg' },
-            { model: 'Mustang Shelby', brand: 'Ford', color: '#2563eb', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Ford_logo_flat.svg/2560px-Ford_logo_flat.svg.png' },
-            { model: 'Skyline R34', brand: 'Nissan', color: '#0ea5e9', logo: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Nissan_logo.png' },
-            { model: 'Supra MK4', brand: 'Toyota', color: '#f97316', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Toyota_carlogo.svg/1200px-Toyota_carlogo.svg.png' },
-            { model: 'Aventador', brand: 'Lamborghini', color: '#eab308', logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/df/Lamborghini_Logo.svg/1200px-Lamborghini_Logo.svg.png' },
-            { model: 'M3 E46', brand: 'BMW', color: '#cbd5e1', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/BMW.svg/2048px-BMW.svg.png' },
-            { model: 'AMG GTR', brand: 'Mercedes', color: '#10b981', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Benz_logo.svg/1024px-Mercedes-Benz_logo.svg.png' },
-            { model: 'Chiron', brand: 'Bugatti', color: '#3b82f6', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Bugatti_logo.svg/2560px-Bugatti_logo.svg.png' },
-            { model: 'Huayra', brand: 'Pagani', color: '#a8a29e', logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Pagani_Automobili_logo%2C_2023.png' },
-            { model: 'Civic Type R', brand: 'Honda', color: '#ffffff', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Honda.svg/2560px-Honda.svg.png' },
-            { model: 'Impreza WRX', brand: 'Subaru', color: '#1d4ed8', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Subaru_logo.svg/1200px-Subaru_logo.svg.png' },
-            { model: 'RX-7', brand: 'Mazda', color: '#facc15', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Mazda_logo_with_emblem.svg/2560px-Mazda_logo_with_emblem.svg.png' },
-            { model: 'Viper ACR', brand: 'Dodge', color: '#4c1d95', logo: 'https://1000logos.net/wp-content/uploads/2018/05/Dodge-Logo-2010.png' },
-            { model: 'Corvette C8', brand: 'Chevrolet', color: '#ef4444', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Chevrolet-logo.png/2560px-Chevrolet-logo.png' },
-            { model: '720S', brand: 'McLaren', color: '#fb923c', logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/6/66/McLaren_Racing_logo.svg/1200px-McLaren_Racing_logo.svg.png' },
-        ];
+        // Contexto para Modales (Confirmaciones)
+        const ModalContext = createContext();
+        const ModalProvider = ({ children }) => {
+            const [modal, setModal] = useState(null); // { title, msg, onConfirm }
+
+            const showConfirm = (title, msg, onConfirm) => {
+                setModal({ title, msg, onConfirm });
+            };
+
+            const close = () => setModal(null);
+
+            return (
+                <ModalContext.Provider value={{ showConfirm }}>
+                    {children}
+                    {modal && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+                            <div className="bg-slate-900 border border-white/10 w-full max-w-sm p-6 rounded-2xl shadow-2xl animate-bounce-in relative">
+                                <h3 className="text-xl text-white font-bold mb-2 font-black italic uppercase tracking-tighter">{modal.title}</h3>
+                                <p className="text-slate-300 mb-6 text-sm">{modal.msg}</p>
+                                <div className="flex justify-end gap-3">
+                                    <button onClick={close} className="px-4 py-2 text-slate-400 hover:text-white font-bold text-sm">CANCELAR</button>
+                                    <button onClick={() => { modal.onConfirm(); close(); }} className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-600/20 text-sm">CONFIRMAR</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </ModalContext.Provider>
+            );
+        };
+        const useModal = () => useContext(ModalContext);
 
         // --- UTILIDADES ---
         const formatTime = (time) => {
@@ -141,508 +182,709 @@
         const getCarBorder = (color) => `1px solid ${color}80`;
         const getCarShadow = (color) => `0 0 20px ${color}40`;
         const headerFontClass = "font-black italic tracking-tighter uppercase";
+        
+        const getCarInitials = (car) => {
+            if (!car) return "";
+            const brandInit = car.brand ? car.brand.substring(0, 3).toUpperCase() : "UNK";
+            const modelInit = car.model ? car.model.split(" ")[0].toUpperCase() : "CAR";
+            return `${brandInit} ${modelInit}`; 
+        };
 
-        // ---------------- COMPONENTES ----------------
+        // --- COMPONENTES PRINCIPALES ---
 
-        // 1. GARAJE (Conectado a Firebase)
+        // 1. GARAJE
         const Garage = ({ cars, loading }) => {
             const [activeIndex, setActiveIndex] = useState(0);
             const [isEditing, setIsEditing] = useState(false);
             const [formData, setFormData] = useState({ model: '', brand: '', color: '#ffffff', logo: '' });
             const [showForm, setShowForm] = useState(false);
-
-            // Seed Database function
-            const seedDatabase = async () => {
-                const batch = db.batch();
-                INITIAL_CARS_SEED.forEach(car => {
-                    const docRef = db.collection('cars').doc();
-                    batch.set(docRef, car);
-                });
-                await batch.commit();
-                alert("¡Autos iniciales cargados!");
-            };
+            const showToast = useToast();
+            const { showConfirm } = useModal();
 
             const nextCar = () => setActiveIndex((prev) => (prev + 1) % cars.length);
             const prevCar = () => setActiveIndex((prev) => (prev - 1 + cars.length) % cars.length);
 
             const handleSave = async () => {
+                if(!formData.brand || !formData.model) return showToast("Falta Marca o Modelo", "error");
                 try {
-                    if (isEditing) {
-                        // Actualizar en Firebase
-                        await db.collection('cars').doc(cars[activeIndex].id).update(formData);
-                    } else {
-                        // Crear en Firebase
+                    if (isEditing) await db.collection('cars').doc(cars[activeIndex].id).update(formData);
+                    else {
                         await db.collection('cars').add(formData);
                         setActiveIndex(cars.length);
                     }
-                    setShowForm(false);
-                    setIsEditing(false);
-                    setFormData({ model: '', brand: '', color: '#ffffff', logo: '' });
-                } catch (error) {
-                    console.error("Error saving car: ", error);
-                    alert("Error al guardar: " + error.message);
-                }
+                    setShowForm(false); setIsEditing(false); setFormData({ model: '', brand: '', color: '#ffffff', logo: '' });
+                    showToast("Auto guardado");
+                } catch (error) { showToast("Error al guardar", "error"); }
             };
 
             const startEdit = () => {
                 if (cars.length === 0) return;
-                setFormData(cars[activeIndex]);
-                setIsEditing(true);
-                setShowForm(true);
+                setFormData(cars[activeIndex]); setIsEditing(true); setShowForm(true);
             };
 
-            const deleteCar = async () => {
-                if (cars.length <= 1) return alert("Debe haber al menos un auto.");
-                if (confirm("¿Estás seguro de borrar este auto? Se borrará para todos.")) {
-                    try {
-                        await db.collection('cars').doc(cars[activeIndex].id).delete();
-                        setActiveIndex(0);
-                    } catch (error) {
-                        console.error("Error deleting: ", error);
-                    }
-                }
+            const deleteCar = () => {
+                if (cars.length <= 1) return showToast("Debe haber al menos un auto", "error");
+                showConfirm("Eliminar Auto", "¿Estás seguro de que quieres eliminar este auto permanentemente?", async () => {
+                    await db.collection('cars').doc(cars[activeIndex].id).delete();
+                    setActiveIndex(0);
+                    showToast("Auto eliminado");
+                });
             };
 
-            if (loading) return <div className="h-full flex items-center justify-center text-white">Cargando Garaje...</div>;
+            if (loading) return <div className="h-full flex items-center justify-center text-white">Cargando motores...</div>;
 
-            if (cars.length === 0) {
-                return (
-                    <div className="h-full flex flex-col items-center justify-center text-white">
-                        <CarIcon className="w-24 h-24 mb-4 text-blue-500 opacity-50"/>
-                        <h2 className="text-2xl font-bold mb-6">El Garaje está vacío</h2>
-                        
-                        <div className="flex gap-4">
-                            <button onClick={() => { setIsEditing(false); setFormData({ model: '', brand: '', color: '#ffffff', logo: '' }); setShowForm(true); }} className="flex items-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/30">
-                                <Plus size={24}/> NUEVO AUTO
-                            </button>
-                            
-                            <button onClick={seedDatabase} className="flex items-center gap-2 px-8 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-bold transition-all text-slate-300">
-                                <CloudUpload size={24}/> Cargar Demo
-                            </button>
-                        </div>
-                        
-                        {/* Modal Form for Empty State */}
-                        {showForm && (
-                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-                            <div className="bg-slate-900 border border-blue-500/30 w-full max-w-md p-8 rounded-2xl shadow-2xl relative">
-                                <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X /></button>
-                                <h3 className={`text-2xl text-white mb-6 ${headerFontClass}`}>Nuevo Auto</h3>
-                                <div className="space-y-4">
-                                    <div><label className="text-xs text-blue-300 uppercase font-bold">Marca</label><input type="text" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 mt-1 focus:border-blue-500 outline-none" placeholder="Ej. Ferrari"/></div>
-                                    <div><label className="text-xs text-blue-300 uppercase font-bold">Modelo</label><input type="text" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 mt-1 focus:border-blue-500 outline-none" placeholder="Ej. F40"/></div>
-                                    <div><label className="text-xs text-blue-300 uppercase font-bold">Logo URL</label><input type="text" value={formData.logo} onChange={e => setFormData({...formData, logo: e.target.value})} className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 mt-1 focus:border-blue-500 outline-none" placeholder="https://..."/></div>
-                                    <div><label className="text-xs text-blue-300 uppercase font-bold">Color</label><input type="color" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-12 h-12 bg-transparent rounded cursor-pointer border-0 p-0 mt-1"/></div>
-                                    <button onClick={handleSave} className="w-full py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold rounded-xl mt-4">GUARDAR AUTO</button>
-                                </div>
-                            </div>
-                        </div>
-                        )}
-                    </div>
-                );
-            }
+            if (cars.length === 0) return <div className="h-full flex flex-col items-center justify-center text-white"><button onClick={() => setShowForm(true)} className="px-8 py-4 bg-blue-600 rounded-xl font-bold">CREAR PRIMER AUTO</button>{showForm && <CarForm formData={formData} setFormData={setFormData} onSave={handleSave} onClose={() => setShowForm(false)} title="Nuevo Auto" />}</div>;
+
+            const currentCar = cars[activeIndex];
 
             return (
-                <div className="flex flex-col items-center justify-center h-full w-full relative overflow-hidden">
+                <div className="flex flex-col items-center justify-start md:justify-center h-full w-full relative overflow-hidden pt-4 md:pt-0">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-
-                    <div className="relative w-full h-[500px] flex items-center justify-center perspective-1000">
-                        <div className="absolute inset-0 flex items-center justify-between px-4 md:px-12 pointer-events-none z-30 max-w-6xl mx-auto w-full">
-                            <button onClick={prevCar} className="pointer-events-auto p-4 bg-white/5 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/20 transition-all group">
-                                <ChevronLeft className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
-                            </button>
-                            <button onClick={nextCar} className="pointer-events-auto p-4 bg-white/5 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/20 transition-all group">
-                                <ChevronRight className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
-                            </button>
+                    
+                    {/* Tarjeta Central Responsiva */}
+                    <div className="relative w-full max-w-md md:max-w-4xl h-[60vh] md:h-[500px] flex items-center justify-center perspective-1000 mb-4 md:mb-0">
+                        {/* Botones Navegación */}
+                        <div className="absolute inset-0 flex items-center justify-between px-2 md:px-12 pointer-events-none z-30 w-full">
+                            <button onClick={prevCar} className="pointer-events-auto p-3 bg-white/5 backdrop-blur-md rounded-full border border-white/20 active:scale-90 transition-all"><ChevronLeft className="w-6 h-6 md:w-8 md:h-8 text-white" /></button>
+                            <button onClick={nextCar} className="pointer-events-auto p-3 bg-white/5 backdrop-blur-md rounded-full border border-white/20 active:scale-90 transition-all"><ChevronRight className="w-6 h-6 md:w-8 md:h-8 text-white" /></button>
                         </div>
-
-                        {cars.map((car, index) => {
-                            const isActive = index === activeIndex;
-                            const isPrev = index === (activeIndex - 1 + cars.length) % cars.length;
-                            const isNext = index === (activeIndex + 1) % cars.length;
-                            
-                            if (!isActive && !isPrev && !isNext && cars.length > 3) return null;
-
-                            let transformClass = '';
-                            let zIndex = 0;
-                            let opacity = 'opacity-0';
-
-                            if (isActive) {
-                                transformClass = 'scale-100 translate-x-0 z-20'; 
-                                zIndex = 20;
-                                opacity = 'opacity-100';
-                            } else if (isPrev) {
-                                transformClass = 'scale-75 -translate-x-[110%] rotate-y-12 blur-[1px]';
-                                zIndex = 10;
-                                opacity = 'opacity-50';
-                            } else if (isNext) {
-                                transformClass = 'scale-75 translate-x-[110%] -rotate-y-12 blur-[1px]';
-                                zIndex = 10;
-                                opacity = 'opacity-50';
-                            }
-
-                            return (
-                                <div key={car.id} className={`absolute top-1/2 left-1/2 w-80 md:w-96 h-[450px] transition-all duration-500 ease-out origin-center -translate-y-1/2 -translate-x-1/2 ${transformClass} ${opacity}`} style={{ zIndex }}>
-                                    <div className="w-full h-full backdrop-blur-xl border rounded-3xl flex flex-col overflow-hidden relative group shadow-2xl" style={{ background: getCarGradient(car.color), borderColor: `${car.color}60`, boxShadow: isActive ? `0 0 50px ${car.color}40` : 'none' }}>
-                                        <div className="h-32 bg-gradient-to-b from-black/40 to-transparent absolute top-0 w-full" />
-                                        <div className="relative z-10 flex justify-center items-center mt-12 mb-4 h-32 transform group-hover:scale-110 transition-transform duration-500">
-                                            {car.logo ? <img src={car.logo} alt={car.brand} className="h-32 w-32 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" /> : <CarIcon className="w-24 h-24 text-white/50" />}
-                                        </div>
-                                        <div className="flex-1 flex flex-col items-center justify-end pb-12 z-10 text-center px-4">
-                                            <h2 className={`text-4xl text-white mb-2 drop-shadow-lg ${headerFontClass}`}>{car.brand}</h2>
-                                            <h3 className="text-xl text-blue-100 font-medium tracking-widest uppercase opacity-90">{car.model}</h3>
-                                            <div className="flex items-center gap-2 mt-6 bg-black/40 px-4 py-2 rounded-full border border-white/10 backdrop-blur-md">
-                                                <span className="text-[10px] text-gray-300 uppercase tracking-widest font-bold">Pintura</span>
-                                                <div className="w-5 h-5 rounded-full border border-white/50 shadow-[0_0_10px_currentColor]" style={{ backgroundColor: car.color, color: car.color }} />
-                                            </div>
-                                        </div>
-                                        <div className="absolute top-0 -left-[100%] w-[50%] h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 group-hover:animate-shine pointer-events-none" />
-                                    </div>
+                        
+                        <div className="w-[85vw] md:w-96 h-full transition-all duration-300 relative z-20">
+                            <div className="w-full h-full backdrop-blur-xl border rounded-3xl flex flex-col overflow-hidden relative shadow-2xl" style={{ background: getCarGradient(currentCar.color), borderColor: `${currentCar.color}60` }}>
+                                <div className="h-1/3 bg-gradient-to-b from-black/40 to-transparent absolute top-0 w-full" />
+                                <div className="relative z-10 flex justify-center items-center mt-8 md:mt-12 mb-4 h-32 md:h-40">
+                                    {currentCar.logo ? <img src={currentCar.logo} className="h-full w-full object-contain p-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" /> : <CarIcon className="w-24 h-24 text-white/50" />}
                                 </div>
-                            );
-                        })}
-                    </div>
-
-                    <div className="flex gap-4 mt-8 z-50 relative">
-                        <button onClick={() => { setIsEditing(false); setFormData({ model: '', brand: '', color: '#ffffff', logo: '' }); setShowForm(true); }} className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-600/30 transition-all font-bold tracking-wide hover:-translate-y-1"><Plus size={20} /> NUEVO</button>
-                        <button onClick={startEdit} className="flex items-center gap-2 px-6 py-3 bg-slate-700/50 hover:bg-slate-600/50 backdrop-blur-md text-white border border-white/10 rounded-xl transition-all hover:-translate-y-1"><Edit3 size={20} /> EDITAR</button>
-                        <button onClick={deleteCar} className="flex items-center gap-2 px-6 py-3 bg-red-900/40 hover:bg-red-800/60 backdrop-blur-md text-red-200 border border-red-500/20 rounded-xl transition-all hover:-translate-y-1"><Trash2 size={20} /> BORRAR</button>
-                    </div>
-
-                    {showForm && (
-                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                            <div className="bg-slate-900 border border-blue-500/30 w-full max-w-md p-8 rounded-2xl shadow-2xl relative">
-                                <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X /></button>
-                                <h3 className={`text-2xl text-white mb-6 ${headerFontClass}`}>{isEditing ? 'Editar Auto' : 'Nuevo Auto'}</h3>
-                                <div className="space-y-4">
-                                    <div><label className="text-xs text-blue-300 uppercase font-bold">Marca</label><input type="text" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 mt-1 focus:border-blue-500 outline-none focus:ring-1 focus:ring-blue-500" placeholder="Ej. Ferrari"/></div>
-                                    <div><label className="text-xs text-blue-300 uppercase font-bold">Modelo</label><input type="text" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 mt-1 focus:border-blue-500 outline-none focus:ring-1 focus:ring-blue-500" placeholder="Ej. F40"/></div>
-                                    <div><label className="text-xs text-blue-300 uppercase font-bold">Logo URL</label><input type="text" value={formData.logo} onChange={e => setFormData({...formData, logo: e.target.value})} className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 mt-1 focus:border-blue-500 outline-none focus:ring-1 focus:ring-blue-500" placeholder="https://..."/></div>
-                                    <div><label className="text-xs text-blue-300 uppercase font-bold">Color</label><div className="flex gap-2 items-center mt-1"><input type="color" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-12 h-12 bg-transparent rounded cursor-pointer border-0 p-0"/><span className="text-white text-sm opacity-50">{formData.color}</span></div></div>
-                                    <button onClick={handleSave} className="w-full py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold rounded-xl mt-4 hover:brightness-110 transition-all shadow-lg shadow-blue-600/20">GUARDAR AUTO</button>
+                                <div className="flex-1 flex flex-col items-center justify-end pb-8 md:pb-12 z-10 text-center px-4">
+                                    <h2 className={`text-3xl md:text-4xl text-white mb-2 drop-shadow-lg ${headerFontClass}`}>{currentCar.brand}</h2>
+                                    <h3 className="text-lg md:text-xl text-blue-100 font-medium tracking-widest uppercase opacity-90">{currentCar.model}</h3>
+                                    <div className="flex items-center gap-2 mt-4 md:mt-6 bg-black/40 px-4 py-2 rounded-full border border-white/10 backdrop-blur-md">
+                                        <div className="w-5 h-5 rounded-full border border-white/50 shadow-[0_0_10px_currentColor]" style={{ backgroundColor: currentCar.color, color: currentCar.color }} />
+                                        <span className="text-[10px] text-gray-300 uppercase tracking-widest font-bold">Pintura</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    )}
+                    </div>
+
+                    {/* Controles */}
+                    <div className="flex gap-4 md:mt-8 z-50 relative pb-20 md:pb-0">
+                        <button onClick={() => { setIsEditing(false); setFormData({ model: '', brand: '', color: '#ffffff', logo: '' }); setShowForm(true); }} className="flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm"><Plus size={18} /> NUEVO</button>
+                        <button onClick={startEdit} className="flex items-center gap-2 px-4 py-3 bg-slate-700/50 text-white border border-white/10 rounded-xl text-sm"><Edit3 size={18} /> EDITAR</button>
+                        <button onClick={deleteCar} className="flex items-center gap-2 px-4 py-3 bg-red-900/40 text-red-200 border border-red-500/20 rounded-xl text-sm"><Trash2 size={18} /> BORRAR</button>
+                    </div>
+
+                    {showForm && <CarForm formData={formData} setFormData={setFormData} onSave={handleSave} onClose={() => setShowForm(false)} title={isEditing ? 'Editar Auto' : 'Nuevo Auto'} />}
                 </div>
             );
         };
 
-        // 2. COPA (Sin cambios mayores, solo consume 'cars' que ya viene de Firebase)
-        const Tournament = ({ cars }) => {
-            const [bracket, setBracket] = useState(null);
-            
-            const startTournament = () => {
-                if (cars.length < 16) return alert("Necesitas al menos 16 autos en el garaje para la Copa.");
-                
-                const shuffled = [...cars].sort(() => 0.5 - Math.random()).slice(0, 16);
-                const round1 = [];
-                for(let i=0; i<16; i+=2) {
-                    round1.push({ p1: shuffled[i], p2: shuffled[i+1], winner: null });
-                }
-                
-                setBracket({
-                    round1: round1,
-                    round2: Array(4).fill({ p1: null, p2: null, winner: null }),
-                    round3: Array(2).fill({ p1: null, p2: null, winner: null }),
-                    round4: Array(1).fill({ p1: null, p2: null, winner: null }),
-                    champion: null
+        // Componente Auxiliar Formulario Auto
+        const CarForm = ({ formData, setFormData, onSave, onClose, title }) => (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fadeIn">
+                <div className="bg-slate-900 border border-blue-500/30 w-full max-w-md p-6 rounded-2xl shadow-2xl relative animate-bounce-in">
+                    <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X /></button>
+                    <h3 className={`text-2xl text-white mb-6 ${headerFontClass}`}>{title}</h3>
+                    <div className="space-y-4">
+                        <input type="text" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3" placeholder="Marca (Ej. Ferrari)"/>
+                        <input type="text" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3" placeholder="Modelo (Ej. F40)"/>
+                        <input type="text" value={formData.logo} onChange={e => setFormData({...formData, logo: e.target.value})} className="w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3" placeholder="URL del Logo (Opcional)"/>
+                        <div className="flex items-center gap-4">
+                            <span className="text-white text-sm">Color:</span>
+                            <input type="color" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="flex-1 h-10 rounded cursor-pointer bg-transparent"/>
+                        </div>
+                        <button onClick={onSave} className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl mt-4 shadow-lg shadow-blue-600/20">GUARDAR</button>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // 2. TORNEO (Crono)
+        const TimeTrial = ({ cars }) => {
+            const [results, setResults] = useState([]);
+            const [selectedCarId, setSelectedCarId] = useState('');
+            const [timer, setTimer] = useState({ running: false, start: 0, elapsed: 0 });
+            const intervalRef = useRef(null);
+            const showToast = useToast();
+            const { showConfirm } = useModal();
+
+            useEffect(() => {
+                const unsubscribe = db.collection('race_results').onSnapshot(snap => {
+                    const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                    setResults(data.sort((a, b) => a.time - b.time));
                 });
+                return () => unsubscribe();
+            }, []);
+
+            useEffect(() => {
+                if (timer.running) { intervalRef.current = setInterval(() => { setTimer(t => ({ ...t, elapsed: Date.now() - t.start })); }, 10); } 
+                else { clearInterval(intervalRef.current); }
+                return () => clearInterval(intervalRef.current);
+            }, [timer.running]);
+
+            const startTimer = () => { if (!selectedCarId) return showToast("Elige un auto primero", "error"); setTimer({ running: true, start: Date.now() - timer.elapsed, elapsed: timer.elapsed }); };
+            const stopTimer = () => setTimer(prev => ({ ...prev, running: false }));
+            const resetTimer = () => { setTimer({ running: false, start: 0, elapsed: 0 }); };
+
+            const saveTime = async () => {
+                if (timer.elapsed === 0) return;
+                const car = cars.find(c => c.id === selectedCarId);
+                if (!car) return;
+                try {
+                    await db.collection('race_results').add({
+                        carId: car.id, brand: car.brand, model: car.model, color: car.color, logo: car.logo, time: timer.elapsed, timestamp: Date.now()
+                    });
+                    resetTimer(); showToast("¡Tiempo registrado!");
+                } catch(e) { showToast(e.message, "error"); }
+            };
+
+            const deleteResult = (id) => { 
+                showConfirm("Borrar Tiempo", "¿Borrar este registro de tiempo?", async () => {
+                    await db.collection('race_results').doc(id).delete();
+                });
+            };
+            
+            // REINICIAR TEMPORADA MEJORADO
+            const resetTournament = () => {
+                showConfirm("Reiniciar Temporada", "Se borrarán TODOS los tiempos registrados. ¿Estás seguro?", async () => {
+                    try {
+                        const snap = await db.collection('race_results').get();
+                        const batch = db.batch();
+                        snap.docs.forEach(doc => batch.delete(doc.ref));
+                        await batch.commit();
+                        showToast("Temporada reiniciada correctamente");
+                    } catch (error) {
+                        try {
+                            const snap = await db.collection('race_results').get();
+                            snap.forEach(doc => doc.ref.delete());
+                        } catch(e) { console.error(e); }
+                    }
+                });
+            };
+
+            return (
+                <div className="w-full h-full p-4 md:p-6 flex flex-col md:flex-row gap-6 overflow-y-auto no-scrollbar pb-24 md:pb-6">
+                    {/* Panel Izquierdo: Cronómetro */}
+                    <div className="w-full md:w-1/3 flex flex-col gap-4">
+                        <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
+                            <h2 className={`text-xl md:text-2xl text-white mb-6 flex items-center gap-2 ${headerFontClass}`}><TimerIcon className="text-blue-400" /> Puesto de Control</h2>
+                            <div className="mb-6 relative">
+                                <label className="text-xs text-blue-300 font-bold uppercase tracking-wider mb-2 block">Piloto</label>
+                                <select value={selectedCarId} onChange={(e) => { setSelectedCarId(e.target.value); resetTimer(); }} className="w-full bg-slate-800 text-white text-lg font-bold rounded-xl px-4 py-4 outline-none border border-slate-700 focus:border-blue-500 appearance-none">
+                                    <option value="">-- Seleccionar Auto --</option>{cars.map(c => <option key={c.id} value={c.id}>{c.brand} - {c.model}</option>)}
+                                </select>
+                                <div className="absolute right-4 top-10 pointer-events-none text-slate-400"><ChevronDown /></div>
+                            </div>
+                            <div className="bg-black/40 rounded-2xl p-6 text-center border border-white/10 mb-6">
+                                <div className={`text-5xl md:text-6xl font-mono tracking-tighter ${timer.running ? 'text-yellow-400' : 'text-white'}`}>{formatTime(timer.elapsed)}</div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                {!timer.running ? ( <button onClick={startTimer} className="bg-green-600 text-white py-4 rounded-xl font-black flex items-center justify-center gap-2 shadow-lg active:scale-95"><Play fill="currentColor" /> INICIAR</button> ) : ( <button onClick={stopTimer} className="bg-yellow-600 text-white py-4 rounded-xl font-black flex items-center justify-center gap-2 shadow-lg active:scale-95 animate-pulse"><Pause fill="currentColor" /> PAUSAR</button> )}
+                                <button onClick={resetTimer} className="bg-slate-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95"><RotateCcw /> RESET</button>
+                            </div>
+                            <button onClick={saveTime} disabled={timer.elapsed === 0 || timer.running} className={`w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 ${timer.elapsed > 0 && !timer.running ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-slate-800 text-slate-600'}`}><SaveIcon /> REGISTRAR</button>
+                        </div>
+                        {results.length > 0 && <button onClick={resetTournament} className="w-full py-3 bg-red-900/30 hover:bg-red-900/50 text-red-200 border border-red-500/20 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"><Trash2 size={16}/> REINICIAR TEMPORADA</button>}
+                    </div>
+
+                    {/* Panel Derecho: Tabla */}
+                    <div className="flex-1 bg-slate-900/60 rounded-3xl overflow-hidden border border-white/10 backdrop-blur-xl flex flex-col shadow-2xl min-h-[400px]">
+                        <div className="bg-[#1e1b4b] p-4 md:p-6 flex items-center justify-between border-b border-white/10">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-gradient-to-tr from-cyan-400 to-blue-600 p-2 rounded-lg shadow-lg"><TimerIcon className="text-white w-5 h-5" /></div>
+                                <div><h2 className={`text-xl md:text-2xl text-white leading-none uppercase tracking-tighter ${headerFontClass}`}>Torneo Oficial</h2></div>
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-auto no-scrollbar p-2 md:p-4">
+                            <table className="w-full text-left border-collapse border-spacing-y-2 border-separate">
+                                <thead className="text-slate-400 text-[10px] uppercase font-bold tracking-widest sticky top-0 bg-slate-900/90 backdrop-blur z-20"><tr><th className="pb-4 pl-4 text-center">#</th><th className="pb-4">Corredor</th><th className="pb-4 text-right">Tiempo</th><th className="pb-4 pr-4 text-center">X</th></tr></thead>
+                                <tbody className="space-y-2">
+                                    {results.map((entry, idx) => (
+                                        <tr key={entry.id} className="relative group">
+                                            <td colSpan="4" className="p-0">
+                                                <div className="flex items-center p-2 md:p-3 rounded-xl relative overflow-hidden mb-2" style={{ background: getCarGradient(entry.color), border: getCarBorder(entry.color) }}>
+                                                    <div className="w-10 text-center z-10"><div className={`w-6 h-6 rounded flex items-center justify-center font-black text-xs mx-auto ${idx < 3 ? 'bg-white text-black' : 'bg-black/30 text-white'}`}>{idx + 1}</div></div>
+                                                    <div className="flex-1 flex items-center gap-3 z-10 pl-2">
+                                                        <div className="w-8 h-8 bg-white/10 rounded-full p-0.5 border border-white/20">{entry.logo && <img src={entry.logo} className="w-full h-full object-contain" />}</div>
+                                                        <div><div className={`text-white text-sm md:text-lg leading-none ${headerFontClass}`}>{entry.brand}</div><div className="text-[10px] md:text-xs text-blue-100 opacity-80 uppercase tracking-wider">{entry.model}</div></div>
+                                                    </div>
+                                                    <div className="text-right px-2 z-10"><div className={`font-mono font-bold text-sm md:text-xl ${idx < 3 ? 'text-yellow-300' : 'text-white'}`}>{formatTime(entry.time)}</div></div>
+                                                    <div className="w-10 text-center z-20"><button onClick={() => deleteResult(entry.id)} className="p-2 text-white/50 hover:text-red-400 relative z-50"><X size={16}/></button></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {results.length === 0 && <tr><td colSpan="4" className="py-20 text-center text-slate-500 italic">No hay tiempos registrados.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 3. COPA (Bracket)
+        const Tournament = ({ cars, onSaveToPalmares }) => {
+            const [bracket, setBracket] = useState(null);
+            const [manualSelection, setManualSelection] = useState(false);
+            const [selectedForCup, setSelectedForCup] = useState([]);
+            const showToast = useToast();
+            const { showConfirm } = useModal();
+
+            useEffect(() => {
+                const unsubscribe = db.collection('active_tournament').doc('current').onSnapshot(doc => {
+                    setBracket(doc.exists ? doc.data() : null);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            // Lógica corregida para Cargar desde Torneo
+            const loadFromTorneo = async () => {
+                try {
+                    const snap = await db.collection('race_results').orderBy('time', 'asc').get();
+                    const results = snap.docs.map(d => ({...d.data()}));
+                    
+                    // Filtrar únicos (primer mejor tiempo de cada auto)
+                    const uniqueCars = []; 
+                    const seenIds = new Set();
+                    for (const r of results) { 
+                        if (!seenIds.has(r.carId)) { 
+                            uniqueCars.push(r); 
+                            seenIds.add(r.carId); 
+                        } 
+                        if (uniqueCars.length === 16) break; 
+                    }
+                    
+                    if (uniqueCars.length < 16) return showToast(`Faltan autos (${uniqueCars.length}/16). Corre más carreras.`, "error");
+                    
+                    // Mezclar emparejamientos: 1vs16, 2vs15, etc.
+                    const round1 = [];
+                    for(let i=0; i<8; i++) { 
+                        round1.push({ p1: uniqueCars[i], p2: uniqueCars[15-i], winner: null }); 
+                    }
+                    
+                    createBracket(round1);
+                    showToast("Copa generada desde Torneo");
+                } catch(e) { showToast("Error: " + e.message, "error"); }
+            };
+
+            const startManualCup = () => {
+                if (selectedForCup.length !== 16) return showToast("Selecciona 16 autos", "error");
+                const shuffled = [...selectedForCup].sort(() => 0.5 - Math.random()); // Aleatorio
+                const round1 = [];
+                for(let i=0; i<8; i+=1) { 
+                    round1.push({ p1: shuffled[i], p2: shuffled[15-i], winner: null }); 
+                }
+                createBracket(round1);
+                setManualSelection(false); setSelectedForCup([]);
+                showToast("Copa Manual Iniciada");
+            };
+
+            const createBracket = (round1Data) => {
+                const bracketData = { 
+                    round1: round1Data, 
+                    round2: Array(4).fill({ p1: null, p2: null, winner: null }), 
+                    round3: Array(2).fill({ p1: null, p2: null, winner: null }), 
+                    round4: Array(1).fill({ p1: null, p2: null, winner: null }), 
+                    champion: null 
+                };
+                db.collection('active_tournament').doc('current').set(bracketData);
             };
 
             const advanceWinner = (roundKey, matchIndex, winner) => {
                 if (!bracket) return;
                 const newBracket = { ...bracket };
-                newBracket[roundKey][matchIndex] = { ...newBracket[roundKey][matchIndex], winner };
-                let nextRoundKey = '';
-                let nextMatchIndex = Math.floor(matchIndex / 2);
-                let playerSlot = matchIndex % 2 === 0 ? 'p1' : 'p2';
+                const match = newBracket[roundKey][matchIndex];
+                const loser = (winner.carId === match.p1.carId) ? match.p2 : match.p1;
 
+                newBracket[roundKey][matchIndex] = { ...match, winner };
+                
+                let nextRoundKey = '', nextMatchIndex = Math.floor(matchIndex / 2), playerSlot = matchIndex % 2 === 0 ? 'p1' : 'p2';
+                
                 if (roundKey === 'round1') nextRoundKey = 'round2';
                 else if (roundKey === 'round2') nextRoundKey = 'round3';
                 else if (roundKey === 'round3') nextRoundKey = 'round4';
-                else if (roundKey === 'round4') {
+                else if (roundKey === 'round4') { 
                     newBracket.champion = winner;
-                    setBracket(newBracket);
+                    db.collection('active_tournament').doc('current').set(newBracket);
+                    // Guardar automáticamente
+                    const dateStr = new Date().toLocaleDateString();
+                    db.collection('hall_of_fame').add({ carId: winner.carId, brand: winner.brand, model: winner.model, logo: winner.logo, color: winner.color, title: `Campeón Copa ${dateStr}`, position: 'champion', timestamp: Date.now() });
+                    if (loser) db.collection('hall_of_fame').add({ carId: loser.carId, brand: loser.brand, model: loser.model, logo: loser.logo, color: loser.color, title: `Subcampeón Copa ${dateStr}`, position: 'runner-up', timestamp: Date.now() });
+                    showToast(`¡${winner.brand} Campeón!`);
                     return;
                 }
-                if (nextRoundKey) {
-                    const nextMatch = newBracket[nextRoundKey][nextMatchIndex] || { p1: null, p2: null, winner: null };
-                    newBracket[nextRoundKey][nextMatchIndex] = { ...nextMatch, [playerSlot]: winner };
+                
+                if (nextRoundKey) { 
+                    const nextMatch = { ...newBracket[nextRoundKey][nextMatchIndex] }; 
+                    nextMatch[playerSlot] = winner; 
+                    newBracket[nextRoundKey][nextMatchIndex] = nextMatch; 
                 }
-                setBracket(newBracket);
+                db.collection('active_tournament').doc('current').set(newBracket);
             };
 
             const BracketMatch = ({ match, round, index }) => (
-                <div className="flex flex-col gap-2 bg-slate-900/50 p-2 rounded-lg border border-white/10 mb-4 w-40 backdrop-blur-sm relative shadow-lg">
+                <div className="flex flex-col gap-1 bg-slate-900/50 p-1 md:p-2 rounded-lg border border-white/10 mb-2 md:mb-4 w-32 md:w-40 backdrop-blur-sm relative shrink-0">
                     {[match.p1, match.p2].map((car, idx) => {
-                        const isWinner = match.winner?.id === car?.id;
-                        const carStyle = car ? {
-                            background: isWinner ? getCarGradient(car.color) : (car ? `linear-gradient(135deg, ${car.color}10 0%, ${car.color}30 100%)` : 'rgba(255,255,255,0.05)'),
-                            borderColor: car ? `${car.color}60` : 'transparent',
-                            boxShadow: isWinner ? getCarShadow(car.color) : 'none'
-                        } : {};
+                        const isWinner = match.winner?.carId === car?.carId;
                         return (
-                        <div key={idx} onClick={() => { if (car && !match.winner) advanceWinner(round, index, car); }} className={`h-10 flex items-center gap-2 px-2 rounded cursor-pointer transition-all border relative overflow-hidden group ${isWinner ? 'text-white scale-105 z-10' : 'text-gray-400 hover:bg-white/10'} ${!car ? 'opacity-30 pointer-events-none' : ''}`} style={carStyle}>
-                            {car ? ( <><div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex-shrink-0 relative border border-white/20">{car.logo && <img src={car.logo} className="w-full h-full object-contain absolute inset-0 p-0.5" alt="" />}</div><span className={`text-[10px] truncate ${headerFontClass}`}>{car.brand}</span>{isWinner && <div className="absolute right-2 text-yellow-400"><Trophy size={10} /></div>}</> ) : <span className="text-[10px]">Esperando...</span>}
-                        </div>
+                            <button key={idx} onClick={(e) => { e.stopPropagation(); if (car && !match.winner) advanceWinner(round, index, car); }} 
+                                className={`h-8 md:h-10 flex items-center gap-2 px-2 rounded cursor-pointer border relative overflow-hidden w-full ${isWinner ? 'text-white scale-105 z-10' : 'text-gray-400 hover:bg-white/10'} ${!car ? 'opacity-30 pointer-events-none' : ''}`} 
+                                style={{ background: car ? (isWinner ? getCarGradient(car.color) : `linear-gradient(90deg, ${car.color}10, transparent)`) : 'transparent', borderColor: car ? `${car.color}60` : 'transparent' }}>
+                                {car ? ( <><div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center shrink-0 border border-white/20">{car.logo && <img src={car.logo} className="w-full h-full object-contain p-0.5" />}</div><span className={`text-[9px] md:text-[10px] truncate font-bold uppercase`}>{getCarInitials(car)}</span>{isWinner && <Trophy className="ml-auto text-yellow-400 w-3 h-3" />}</> ) : <span className="text-[10px]">...</span>}
+                            </button>
                     )})}
                 </div>
             );
-
-            return (
-                <div className="w-full h-full overflow-auto p-8 relative no-scrollbar">
-                {!bracket ? (
-                    <div className="h-full flex flex-col items-center justify-center">
-                        <Trophy className="w-32 h-32 text-yellow-500 drop-shadow-[0_0_40px_rgba(234,179,8,0.4)] mb-6 animate-pulse" />
-                        <h2 className={`text-4xl text-white mb-4 ${headerFontClass}`}>Copa MoonRacers</h2>
-                        <p className="text-blue-200 mb-8 max-w-md text-center">Selecciona 16 autos del garaje y compite en un torneo eliminatorio.</p>
-                        <button onClick={startTournament} className="px-8 py-4 bg-gradient-to-r from-yellow-600 to-orange-500 text-white font-bold rounded-xl text-xl hover:scale-105 transition-transform shadow-[0_0_30px_rgba(234,179,8,0.4)]">COMENZAR TORNEO</button>
-                        <div className="mt-4 text-sm text-slate-400 bg-slate-900/50 px-4 py-2 rounded-full border border-white/10">Autos disponibles: <span className="text-white font-bold">{cars.length}</span> / 16</div>
-                    </div>
-                ) : (
-                    <div className="flex justify-between min-w-[1000px] h-full items-center pl-8">
-                        <div className="flex flex-col justify-around h-full"><h3 className="text-center text-blue-400 text-xs font-bold uppercase mb-4 tracking-widest">Octavos</h3>{bracket.round1.map((m, i) => <BracketMatch key={i} match={m} round="round1" index={i} />)}</div>
-                        <div className="flex flex-col justify-around h-[80%] relative"><div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent -translate-x-8"></div><h3 className="text-center text-blue-400 text-xs font-bold uppercase mb-4 tracking-widest">Cuartos</h3>{bracket.round2.map((m, i) => <BracketMatch key={i} match={m} round="round2" index={i} />)}</div>
-                        <div className="flex flex-col justify-around h-[60%] relative"><div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent -translate-x-8"></div><h3 className="text-center text-blue-400 text-xs font-bold uppercase mb-4 tracking-widest">Semifinal</h3>{bracket.round3.map((m, i) => <BracketMatch key={i} match={m} round="round3" index={i} />)}</div>
-                        <div className="flex flex-col justify-center h-full relative"><div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent -translate-x-8"></div><h3 className="text-center text-yellow-400 text-sm font-bold uppercase mb-4 tracking-widest">GRAN FINAL</h3><BracketMatch match={bracket.round4[0]} round="round4" index={0} /></div>
-                        <div className="flex flex-col justify-center items-center h-full w-64 pl-8 border-l border-white/5 bg-gradient-to-r from-white/5 to-transparent">{bracket.champion ? (<div className="flex flex-col items-center animate-bounce-in text-center p-6"><div className="relative"><div className="absolute inset-0 bg-yellow-500 blur-[40px] opacity-30"></div><Trophy className="w-24 h-24 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)] mb-6 relative z-10" /></div><h2 className={`text-3xl text-white text-center mb-2 ${headerFontClass}`}>{bracket.champion.brand}</h2><h3 className="text-xl text-blue-300 text-center uppercase tracking-widest">{bracket.champion.model}</h3><div className="mt-6 px-6 py-2 bg-gradient-to-r from-yellow-600 to-yellow-500 text-white rounded-full text-xs font-bold tracking-[0.2em] uppercase shadow-lg">Campeón</div><button onClick={() => setBracket(null)} className="mt-12 text-slate-400 hover:text-white text-xs border-b border-transparent hover:border-white transition-all pb-1">Reiniciar Copa</button></div>) : (<div className="w-32 h-32 rounded-full border-2 border-dashed border-white/10 flex items-center justify-center"><Trophy className="w-10 h-10 text-white/10" /></div>)}</div>
-                    </div>
-                )}
-                </div>
-            );
-        };
-
-        // 3. CRONO (Usa 'cars' de Firebase)
-        const TimeTrial = ({ cars }) => {
-            const [entries, setEntries] = useState([]);
-            const [selectedCarId, setSelectedCarId] = useState('');
-            const intervalRef = useRef(null);
-
-            useEffect(() => {
-                intervalRef.current = setInterval(() => {
-                    setEntries(prev => prev.map(entry => {
-                        if (entry.status === 'running') return { ...entry, elapsed: Date.now() - entry.startTime };
-                        return entry;
-                    }));
-                }, 10);
-                return () => clearInterval(intervalRef.current);
-            }, []);
-
-            const addCarToRace = () => {
-                if (!selectedCarId) return;
-                const carToAdd = cars.find(c => c.id === selectedCarId); // Firebase usa IDs string
-                if (entries.find(e => e.car.id === carToAdd.id)) return alert("Auto ya está en la pista.");
-                setEntries([...entries, { car: carToAdd, status: 'idle', elapsed: 0, startTime: 0 }]);
-                setSelectedCarId('');
-            };
-
-            const toggleTimer = (id) => {
-                setEntries(prev => prev.map(entry => {
-                    if (entry.car.id !== id) return entry;
-                    if (entry.status === 'idle' || entry.status === 'paused') {
-                        return { ...entry, status: 'running', startTime: Date.now() - entry.elapsed };
-                    } else if (entry.status === 'running') {
-                        return { ...entry, status: 'paused' };
-                    }
-                    return entry;
-                }));
-            };
-
-            const resetTimer = (id) => {
-                setEntries(prev => prev.map(entry => {
-                    if (entry.car.id !== id) return entry;
-                    return { ...entry, status: 'idle', elapsed: 0, startTime: 0 };
-                }));
-            };
-
-            const sortedEntries = [...entries].sort((a, b) => {
-                if (a.elapsed === 0 && b.elapsed === 0) return 0;
-                if (a.elapsed === 0) return 1;
-                if (b.elapsed === 0) return -1;
-                return a.elapsed - b.elapsed;
-            });
-
-            return (
-                <div className="w-full h-full p-6 flex flex-col md:flex-row gap-6">
-                    <div className="w-full md:w-1/3 flex flex-col gap-4">
-                        <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/10 backdrop-blur-md shadow-xl">
-                            <h3 className={`text-xl text-white mb-4 flex items-center gap-2 ${headerFontClass}`}><CarIcon className="text-blue-400" /> Nuevo Corredor</h3>
-                            <div className="flex gap-2">
-                                <div className="flex-1 relative">
-                                    <select value={selectedCarId} onChange={(e) => setSelectedCarId(e.target.value)} className="w-full bg-slate-800 text-white rounded-lg px-3 py-3 outline-none border border-slate-700 appearance-none cursor-pointer hover:border-blue-500 transition-colors">
-                                        <option value="">Selecciona un auto...</option>
-                                        {cars.map(c => <option key={c.id} value={c.id}>{c.brand} {c.model}</option>)}
-                                    </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"><ChevronDown size={16} /></div>
-                                </div>
-                                <button onClick={addCarToRace} className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-lg transition-colors shadow-lg shadow-blue-600/20"><Plus /></button>
+            
+            // UI SELECCIÓN MANUAL MEJORADA
+            if (manualSelection) {
+                return (
+                    <div className="w-full h-full p-4 md:p-8 flex flex-col bg-slate-950 overflow-hidden">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className={`text-xl md:text-3xl text-white ${headerFontClass}`}>Elige 16 Autos</h2>
+                            <div className="flex gap-2 items-center">
+                                <span className={`text-sm md:text-xl font-mono px-3 py-1 rounded-lg border ${selectedForCup.length === 16 ? 'border-green-500 text-green-400' : 'border-white/10 text-white'}`}>{selectedForCup.length}/16</span>
+                                <button onClick={() => setManualSelection(false)} className="text-slate-400 text-sm px-2">Cancelar</button>
+                                <button onClick={startManualCup} disabled={selectedForCup.length !== 16} className={`px-4 py-2 rounded-xl font-bold text-sm ${selectedForCup.length === 16 ? 'bg-green-600 text-white' : 'bg-slate-800 text-slate-500'}`}>JUGAR</button>
                             </div>
                         </div>
-                        <div className="flex-1 overflow-auto space-y-3 pr-2 no-scrollbar">
-                            {entries.map((entry) => (
-                                <div key={entry.car.id} className="p-4 rounded-xl relative group transition-all" style={{ background: `linear-gradient(90deg, ${entry.car.color}20 0%, rgba(15,23,42,0.8) 100%)`, borderLeft: `4px solid ${entry.car.color}`, borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <button onClick={() => setEntries(prev => prev.filter(e => e.car.id !== entry.car.id))} className="absolute top-2 right-2 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><X size={16}/></button>
-                                    <div className="flex justify-between items-center mb-3"><div className="flex items-center gap-3">{entry.car.logo && <img src={entry.car.logo} className="w-8 h-8 object-contain opacity-80" />}<div><span className={`text-xs block text-blue-300 uppercase opacity-80 ${headerFontClass}`}>{entry.car.brand}</span><div className="text-white font-bold text-sm">{entry.car.model}</div></div></div></div>
-                                    <div className="bg-black/30 rounded-lg p-2 mb-3 text-center border border-white/5"><div className="font-mono text-3xl text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">{formatTime(entry.elapsed)}</div></div>
-                                    <div className="flex gap-2"><button onClick={() => toggleTimer(entry.car.id)} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-xs transition-all shadow-lg ${entry.status === 'running' ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}>{entry.status === 'running' ? <><Pause size={14}/> DETENER</> : <><Play size={14}/> INICIAR</>}</button><button onClick={() => resetTimer(entry.car.id)} className="p-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 border border-white/5"><RotateCcw size={14} /></button></div>
-                                </div>
-                            ))}
+                        <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                {cars.map(car => {
+                                    const isSelected = selectedForCup.find(c => c.id === car.id);
+                                    return (
+                                        <div key={car.id} onClick={() => {
+                                            if (isSelected) setSelectedForCup(prev => prev.filter(c => c.id !== car.id));
+                                            else { if (selectedForCup.length >= 16) return showToast("Máximo 16", "error"); setSelectedForCup(prev => [...prev, car]); }
+                                        }} className={`cursor-pointer rounded-2xl p-4 border-2 transition-all relative aspect-square flex flex-col items-center justify-center bg-slate-900/40 ${isSelected ? 'border-green-500 bg-green-900/20' : 'border-white/5 hover:border-white/20'}`}>
+                                            <div className="w-full h-1/2 flex items-center justify-center mb-2">{car.logo ? <img src={car.logo} className="max-h-full max-w-full object-contain drop-shadow-md" /> : <CarIcon className="w-10 h-10 text-white/20"/>}</div>
+                                            <div className="text-center w-full">
+                                                <div className="text-[10px] text-blue-300 uppercase font-black tracking-widest truncate">{car.brand}</div>
+                                                <div className="text-sm md:text-base text-white font-bold truncate">{car.model}</div>
+                                            </div>
+                                            {isSelected && <div className="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-black font-bold text-xs shadow-lg">✓</div>}
+                                        </div>
+                                    )
+                                })}
+                            </div>
                         </div>
                     </div>
-                    <div className="flex-1 bg-slate-900/60 rounded-3xl overflow-hidden border border-white/10 backdrop-blur-xl flex flex-col shadow-2xl">
-                        <div className="bg-[#1e1b4b] p-6 flex items-center justify-between border-b border-white/10 relative overflow-hidden"><div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-blue-600/20 to-transparent"></div><div className="flex items-center gap-4 relative z-10"><div className="bg-gradient-to-tr from-cyan-400 to-blue-600 p-2.5 rounded-xl shadow-lg shadow-blue-500/30"><Timer className="text-white w-6 h-6" /></div><div><h2 className={`text-2xl text-white leading-none uppercase tracking-tighter mb-1 ${headerFontClass}`}>Torneo</h2><span className="text-xs text-cyan-400 font-bold uppercase tracking-[0.2em]">Clasificación Oficial</span></div></div><div className={`text-white/10 text-5xl select-none ${headerFontClass}`}>MR</div></div>
-                        <div className="flex-1 overflow-auto no-scrollbar p-4"><table className="w-full text-left border-collapse border-spacing-y-2 border-separate"><thead className="text-slate-400 text-[10px] uppercase font-bold tracking-widest"><tr><th className="pb-4 pl-4 text-center">Pos</th><th className="pb-4">Corredor</th><th className="pb-4 text-right">Tiempo</th><th className="pb-4 pr-4 text-center">Dif</th></tr></thead><tbody className="space-y-2">{sortedEntries.map((entry, idx) => { const isLeader = idx === 0; const gap = isLeader ? '-' : `+${((entry.elapsed - sortedEntries[0].elapsed)/1000).toFixed(2)}`; const hasTime = entry.elapsed > 0; return ( <tr key={entry.car.id} className="relative group transform transition-transform duration-200 hover:scale-[1.01]"><td colSpan="4" className="p-0"><div className="flex items-center p-2 rounded-xl relative overflow-hidden mb-2" style={{ background: getCarGradient(entry.car.color), border: getCarBorder(entry.car.color), boxShadow: getCarShadow(entry.car.color), }}>{entry.car.logo && ( <div className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 bg-no-repeat bg-contain transform rotate-12 pointer-events-none" style={{backgroundImage: `url(${entry.car.logo})`}}></div> )}<div className="w-16 flex-shrink-0 text-center relative z-10"><div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm mx-auto shadow-lg ${isLeader && hasTime ? 'bg-gradient-to-br from-yellow-300 to-yellow-600 text-black' : 'bg-black/40 text-white border border-white/10'}`}>{idx + 1}</div></div><div className="flex-1 flex items-center gap-4 relative z-10 pl-2"><div className="w-10 h-10 bg-white/10 rounded-full p-1 border border-white/20 backdrop-blur-sm">{entry.car.logo && <img src={entry.car.logo} className="w-full h-full object-contain" />}</div><div><div className={`text-white text-lg leading-none mb-1 ${headerFontClass}`}>{entry.car.brand}</div><div className="text-xs text-blue-100 opacity-80 uppercase tracking-wider font-medium">{entry.car.model}</div></div></div><div className="text-right px-4 relative z-10"><div className={`font-mono font-bold text-xl tracking-tight ${isLeader && hasTime ? 'text-yellow-300 drop-shadow-[0_0_10px_rgba(253,224,71,0.5)]' : 'text-white'}`}>{hasTime ? formatTime(entry.elapsed) : '--:--:--'}</div></div><div className="w-20 text-center text-xs font-mono font-bold text-white/70 relative z-10 bg-black/20 py-1 rounded mx-2">{hasTime ? gap : '-'}</div></div></td></tr> )})}{entries.length === 0 && ( <tr><td colSpan="4" className="py-20 text-center text-slate-500 italic border-2 border-dashed border-slate-800 rounded-xl"><CarIcon className="w-12 h-12 mx-auto mb-2 opacity-20" />No hay autos en la pista.</td></tr> )}</tbody></table></div>
+                );
+            }
+
+            if (!bracket) {
+                return (
+                    <div className="h-full flex flex-col items-center justify-center p-4">
+                        <Trophy className="w-24 h-24 md:w-32 md:h-32 text-slate-700 mb-6" />
+                        <h2 className="text-3xl md:text-4xl text-white font-black uppercase italic mb-8 text-center">Copa MoonRacers</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-3xl">
+                            <button className="bg-slate-900 border border-white/10 p-6 md:p-8 rounded-3xl hover:border-blue-500/50 flex flex-col items-center text-center group" onClick={loadFromTorneo}>
+                                <ListCheck className="w-12 h-12 text-blue-400 mb-4 group-hover:scale-110 transition-transform"/>
+                                <h3 className="text-xl text-white font-bold">Cargar Clasificados</h3>
+                                <p className="text-slate-400 text-xs mt-2">Usar los 16 mejores tiempos del Torneo.</p>
+                            </button>
+                            <button className="bg-slate-900 border border-white/10 p-6 md:p-8 rounded-3xl hover:border-green-500/50 flex flex-col items-center text-center group" onClick={() => setManualSelection(true)}>
+                                <MousePointerClick className="w-12 h-12 text-green-400 mb-4 group-hover:scale-110 transition-transform"/>
+                                <h3 className="text-xl text-white font-bold">Selección Manual</h3>
+                                <p className="text-slate-400 text-xs mt-2">Elegir 16 autos a dedo.</p>
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="w-full h-full overflow-x-auto overflow-y-hidden p-4 md:p-8 relative bg-slate-950 flex flex-col">
+                    <div className="flex justify-between items-center mb-4 px-4 min-w-[300px]">
+                        <h3 className="text-white font-bold uppercase text-sm">Cuadro de Eliminación</h3>
+                        <button onClick={() => { showConfirm("Reiniciar Copa", "¿Estás seguro? Se perderá el progreso actual.", () => db.collection('active_tournament').doc('current').delete()); }} className="text-red-400 text-xs border border-red-500/30 px-3 py-1 rounded hover:bg-red-900/20">Reiniciar</button>
+                    </div>
+                    {/* Vista Bracket: Scroll Horizontal en Móvil */}
+                    <div className="flex justify-start md:justify-center min-w-[800px] md:min-w-full h-full items-center pl-4 pb-20">
+                        <div className="flex flex-col justify-around h-full mr-8"><h3 className="text-center text-blue-400 text-[10px] uppercase mb-2 tracking-widest">Octavos</h3>{bracket.round1.map((m, i) => <BracketMatch key={i} match={m} round="round1" index={i} />)}</div>
+                        <div className="flex flex-col justify-around h-[80%] mr-8 relative"><div className="absolute left-[-1rem] top-0 bottom-0 w-px bg-white/5"></div><h3 className="text-center text-blue-400 text-[10px] uppercase mb-2 tracking-widest">Cuartos</h3>{bracket.round2.map((m, i) => <BracketMatch key={i} match={m} round="round2" index={i} />)}</div>
+                        <div className="flex flex-col justify-around h-[60%] mr-8 relative"><div className="absolute left-[-1rem] top-0 bottom-0 w-px bg-white/5"></div><h3 className="text-center text-blue-400 text-[10px] uppercase mb-2 tracking-widest">Semi</h3>{bracket.round3.map((m, i) => <BracketMatch key={i} match={m} round="round3" index={i} />)}</div>
+                        <div className="flex flex-col justify-center h-full relative"><div className="absolute left-[-1rem] top-0 bottom-0 w-px bg-white/5"></div><h3 className="text-center text-yellow-400 text-xs font-bold uppercase mb-4 tracking-widest">FINAL</h3><BracketMatch match={bracket.round4[0]} round="round4" index={0} /></div>
+                        
+                        {/* Campeón Display */}
+                        <div className="flex flex-col justify-center items-center h-full w-48 md:w-64 pl-8 border-l border-white/5 ml-4">
+                            {bracket.champion ? (
+                                <div className="flex flex-col items-center animate-bounce-in text-center p-2">
+                                    <Trophy className="w-16 h-16 md:w-24 md:h-24 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)] mb-4" />
+                                    <h2 className={`text-xl md:text-3xl text-white text-center mb-1 ${headerFontClass}`}>{bracket.champion.brand}</h2>
+                                    <h3 className="text-sm md:text-xl text-blue-300 text-center uppercase tracking-widest">{bracket.champion.model}</h3>
+                                    <button onClick={() => onSaveToPalmares(bracket.champion)} className="mt-6 px-4 py-2 bg-slate-800 text-white text-xs rounded-lg border border-white/20">Agregar Otro Título</button>
+                                </div>
+                            ) : <div className="w-24 h-24 rounded-full border-2 border-dashed border-white/10 flex items-center justify-center"><Trophy className="w-8 h-8 text-white/10" /></div>}
+                        </div>
                     </div>
                 </div>
             );
         };
 
-        // 4. DUELO CALLEJERO (Conectado a Firebase)
-        const StreetCounter = ({ cars }) => {
-            const [session, setSession] = useState({ active: false, winner: null });
-            const [contestants, setContestants] = useState([]);
-            const [editingNames, setEditingNames] = useState(false);
-            const [loading, setLoading] = useState(true);
+        // 4. PALMARÉS (Historial + Edición + Ranking Mejorado)
+        const Palmares = ({ cars }) => {
+            const [honors, setHonors] = useState([]);
+            const [viewMode, setViewMode] = useState('ranking'); // Default to ranking
+            const [editForm, setEditForm] = useState({ id: null, carId: '', title: '' });
+            const [selectedCarHistory, setSelectedCarHistory] = useState(null); // Nuevo estado para detalle
+            const showToast = useToast();
+            const { showConfirm } = useModal();
 
-            // Suscribirse a los datos de la calle
             useEffect(() => {
-                const unsubscribe = db.collection('street_race').doc('current').onSnapshot(doc => {
-                    if (doc.exists) {
-                        const data = doc.data();
-                        setSession(data.session);
-                        setContestants(data.contestants);
-                    } else {
-                        // Inicializar si no existe
-                        const initialData = {
-                            session: { active: false, winner: null },
-                            contestants: [
-                                { id: 1, name: 'Marca A', count: 0, color: '#3b82f6', logo: null },
-                                { id: 2, name: 'Marca B', count: 0, color: '#dc2626', logo: null }
-                            ]
-                        };
-                        db.collection('street_race').doc('current').set(initialData);
-                    }
-                    setLoading(false);
+                const unsubscribe = db.collection('hall_of_fame').orderBy('timestamp', 'desc').onSnapshot(snap => {
+                    setHonors(snap.docs.map(d => ({id: d.id, ...d.data()})));
                 });
                 return () => unsubscribe();
             }, []);
 
-            const updateFirestore = (newContestants, newSession) => {
-                db.collection('street_race').doc('current').update({
-                    contestants: newContestants,
-                    session: newSession || session
+            const saveHonor = async () => {
+                if (!editForm.carId || !editForm.title) return showToast("Completa los datos", "error");
+                const car = cars.find(c => c.id === editForm.carId);
+                if (!car) return;
+                
+                const data = {
+                    carId: car.id, brand: car.brand, model: car.model, logo: car.logo, color: car.color,
+                    title: editForm.title, position: 'champion', timestamp: editForm.id ? Date.now() : Date.now()
+                };
+
+                try {
+                    if (editForm.id) await db.collection('hall_of_fame').doc(editForm.id).update(data);
+                    else await db.collection('hall_of_fame').add(data);
+                    
+                    setEditForm({ id: null, carId: '', title: '' });
+                    showToast("Título guardado");
+                } catch(e) { showToast("Error", "error"); }
+            };
+
+            const deleteHonor = (e, id) => { 
+                e.stopPropagation(); 
+                showConfirm("Eliminar Título", "¿Borrar este título del historial?", async () => {
+                    await db.collection('hall_of_fame').doc(id).delete(); 
                 });
             };
 
-            const toggleSession = () => {
-                let newSession;
-                let newContestants = [...contestants];
+            // Lógica Ranking: Agrupar y ordenar por campeonatos (luego subs)
+            const rankingData = useMemo(() => {
+                const stats = {};
+                honors.forEach(h => {
+                    if (!stats[h.carId]) stats[h.carId] = { car: h, champions: 0, runnerUps: 0, titles: [] };
+                    stats[h.carId].titles.push(h); // Guardar historial individual
+                    if (h.position === 'champion') stats[h.carId].champions++;
+                    if (h.position === 'runner-up') stats[h.carId].runnerUps++;
+                });
+                return Object.values(stats).sort((a, b) => {
+                    if (b.champions !== a.champions) return b.champions - a.champions; // Primero Campeonatos
+                    return b.runnerUps - a.runnerUps; // Luego Subcampeonatos
+                });
+            }, [honors]);
 
-                if (session.active) {
-                    const winner = contestants[0].count > contestants[1].count ? contestants[0] : 
-                                   contestants[1].count > contestants[0].count ? contestants[1] : { name: 'Empate' };
-                    newSession = { active: false, winner };
-                } else {
-                    newContestants = contestants.map(c => ({...c, count: 0}));
-                    newSession = { active: true, winner: null };
-                }
-                updateFirestore(newContestants, newSession);
-            };
-
-            const increment = (idx) => {
-                if (!session.active) return;
-                const newC = [...contestants];
-                newC[idx].count++;
-                updateFirestore(newC, null);
-            };
-
-            const updateName = (idx, val) => {
-                const newC = [...contestants];
-                newC[idx].name = val;
-                const foundCar = cars.find(c => c.brand.toLowerCase().includes(val.toLowerCase()) || c.model.toLowerCase().includes(val.toLowerCase()));
-                if (foundCar) {
-                    newC[idx].color = foundCar.color;
-                    newC[idx].logo = foundCar.logo;
-                } else {
-                    newC[idx].color = idx === 0 ? '#3b82f6' : '#dc2626';
-                    newC[idx].logo = null;
-                }
-                updateFirestore(newC, null);
-            };
-
-            if (loading) return <div className="h-full flex items-center justify-center text-white">Cargando Calle...</div>;
+            // Ver detalle de auto
+            if (selectedCarHistory) {
+                 return (
+                    <div className="w-full h-full p-6 flex flex-col items-center justify-start bg-slate-950 overflow-y-auto">
+                        <div className="w-full max-w-2xl bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl relative">
+                            <button onClick={() => setSelectedCarHistory(null)} className="absolute top-6 left-6 text-white hover:text-blue-400 flex items-center gap-2"><ArrowLeft size={20}/> Volver</button>
+                            <div className="flex flex-col items-center mt-8">
+                                <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center border border-white/10 mb-4">{selectedCarHistory.car.logo && <img src={selectedCarHistory.car.logo} className="w-16 h-16 object-contain"/>}</div>
+                                <h2 className={`text-3xl text-white ${headerFontClass}`}>{selectedCarHistory.car.brand}</h2>
+                                <h3 className="text-xl text-blue-300 uppercase tracking-widest">{selectedCarHistory.car.model}</h3>
+                                <div className="flex gap-4 mt-4">
+                                    <div className="px-4 py-2 bg-yellow-600/20 border border-yellow-500/50 rounded-lg text-yellow-400 font-bold text-sm">{selectedCarHistory.champions} Copas</div>
+                                    <div className="px-4 py-2 bg-slate-700/30 border border-slate-600 rounded-lg text-slate-300 font-bold text-sm">{selectedCarHistory.runnerUps} Subcampeonatos</div>
+                                </div>
+                            </div>
+                            <div className="mt-8 space-y-3">
+                                {selectedCarHistory.titles.sort((a,b) => b.timestamp - a.timestamp).map(t => (
+                                    <div key={t.id} className={`p-4 rounded-xl border flex items-center gap-4 ${t.position === 'champion' ? 'bg-gradient-to-r from-yellow-900/20 to-transparent border-yellow-500/30' : 'bg-slate-800/30 border-slate-700'}`}>
+                                        <div className={`p-2 rounded-full ${t.position === 'champion' ? 'bg-yellow-500 text-black' : 'bg-slate-600 text-white'}`}><Trophy size={16}/></div>
+                                        <div className="flex-1">
+                                            <div className="text-white font-bold">{t.title}</div>
+                                            <div className="text-xs text-slate-400">{new Date(t.timestamp).toLocaleDateString()}</div>
+                                        </div>
+                                        <div className={`text-xs font-bold uppercase tracking-wider ${t.position === 'champion' ? 'text-yellow-400' : 'text-slate-400'}`}>{t.position === 'champion' ? 'CAMPEÓN' : 'SUBCAMPEÓN'}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                 )
+            }
 
             return (
-                <div className="w-full h-full flex flex-col items-center justify-center p-8 relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-20 pointer-events-none" style={{backgroundImage: 'radial-gradient(circle, #3b82f6 1px, transparent 1px)', backgroundSize: '30px 30px'}}></div>
-                    <div className="bg-slate-900/80 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl max-w-4xl w-full text-center relative z-10">
-                        <div className="mb-10"><h2 className={`text-3xl text-white flex justify-center items-center gap-3 ${headerFontClass} mb-2`}><Users className="text-blue-500" /> Duelo Callejero</h2><p className="text-blue-300 text-sm uppercase tracking-widest font-bold opacity-60">Conteo en tiempo real</p></div>
-                        <div className="flex flex-col md:flex-row gap-8 items-center justify-center mb-12">
-                            {contestants.map((contestant, idx) => (
-                            <div key={contestant.id} className="flex-1 w-full group">
-                                <div className="h-12 flex items-center justify-center mb-4">
-                                    {editingNames && !session.active ? ( <input value={contestant.name} onChange={e => updateName(idx, e.target.value)} className="bg-slate-800 text-white text-center p-2 rounded w-full border border-blue-500/50 outline-none focus:border-blue-400"/> ) : ( <h3 className={`text-3xl text-white ${headerFontClass} drop-shadow-md`}>{contestant.name}</h3> )}
+                <div className="w-full h-full p-4 md:p-8 flex flex-col md:flex-row gap-6 overflow-y-auto no-scrollbar pb-24">
+                    {/* Formulario Lateral (Gestión Manual) */}
+                    <div className="w-full md:w-1/3">
+                        <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl shadow-xl sticky top-0">
+                            <h2 className={`text-xl text-white mb-4 flex items-center gap-2 ${headerFontClass}`}>{editForm.id ? 'Editar Título' : 'Otorgar Título Manual'}</h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs text-blue-300 font-bold uppercase mb-1 block">Auto Campeón</label>
+                                    <select value={editForm.carId} onChange={e => setEditForm({...editForm, carId: e.target.value})} className="w-full bg-slate-800 text-white p-3 rounded-xl border border-slate-700 outline-none">
+                                        <option value="">-- Seleccionar --</option>{cars.map(c => <option key={c.id} value={c.id}>{c.brand} {c.model}</option>)}
+                                    </select>
                                 </div>
-                                <button onClick={() => increment(idx)} disabled={!session.active} className={`w-full h-56 rounded-3xl flex items-center justify-center text-9xl font-black transition-all transform duration-100 relative overflow-hidden border-4 ${session.active ? 'cursor-pointer active:scale-95 hover:-translate-y-2' : 'cursor-not-allowed opacity-50 grayscale'}`} style={{ background: getCarGradient(contestant.color), borderColor: `${contestant.color}80`, boxShadow: session.active ? `0 20px 50px -10px ${contestant.color}50` : 'none', color: 'white' }}>
-                                    {contestant.logo && ( <div className="absolute inset-0 opacity-20 bg-no-repeat bg-center bg-contain z-0 pointer-events-none transform group-hover:scale-110 transition-transform duration-500" style={{backgroundImage: `url(${contestant.logo})`}}></div> )}
-                                    <span className="relative z-10 drop-shadow-2xl">{contestant.count}</span>
-                                </button>
+                                <div>
+                                    <label className="text-xs text-blue-300 font-bold uppercase mb-1 block">Nombre Copa / Título</label>
+                                    <input type="text" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full bg-slate-800 text-white p-3 rounded-xl border border-slate-700 outline-none" placeholder="Ej. Copa Verano"/>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={saveHonor} className="flex-1 py-3 bg-yellow-600 text-white font-bold rounded-xl shadow-lg">{editForm.id ? 'ACTUALIZAR' : 'AGREGAR'}</button>
+                                    {editForm.id && <button onClick={() => setEditForm({ id: null, carId: '', title: '' })} className="px-4 bg-slate-700 text-white rounded-xl">Cancelar</button>}
+                                </div>
                             </div>
-                            ))}
-                            <div className="flex flex-col items-center justify-center pt-12"><div className={`text-4xl text-slate-500 italic opacity-50 font-black`}>VS</div></div>
                         </div>
-                        {session.winner && !session.active && ( <div className="mb-8 p-6 bg-gradient-to-r from-yellow-900/40 to-yellow-600/20 border border-yellow-500/50 rounded-2xl animate-bounce-in max-w-lg mx-auto"><span className="text-yellow-400 font-bold uppercase tracking-[0.3em] text-xs mb-2 block">Ganador de la Tanda</span><div className={`text-4xl text-white ${headerFontClass} drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]`}>{session.winner.name}</div></div> )}
-                        <div className="flex justify-center gap-4 mt-8">
-                            <button onClick={toggleSession} className={`px-12 py-4 rounded-xl font-bold text-lg transition-all shadow-lg hover:-translate-y-1 ${session.active ? 'bg-slate-800 text-red-400 border border-red-500/30 hover:bg-slate-700' : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-blue-500/30'}`}>{session.active ? 'FINALIZAR CONTEO' : 'INICIAR CONTEO'}</button>
-                            {!session.active && ( <button onClick={() => setEditingNames(!editingNames)} className="p-4 bg-slate-800 text-slate-300 border border-slate-700 rounded-xl hover:bg-slate-700 hover:text-white transition-all hover:-translate-y-1"><Edit3 /></button> )}
+                    </div>
+
+                    {/* Lista / Ranking */}
+                    <div className="flex-1 flex flex-col bg-slate-900/50 rounded-3xl overflow-hidden border border-white/5 backdrop-blur-sm min-h-[400px]">
+                        <div className="flex border-b border-white/10">
+                            <button onClick={() => setViewMode('ranking')} className={`flex-1 py-3 text-center font-bold uppercase text-xs tracking-wider flex items-center justify-center gap-2 ${viewMode === 'ranking' ? 'bg-white/10 text-white' : 'text-slate-500'}`}><BarChart size={16}/> Ranking General</button>
+                            <button onClick={() => setViewMode('history')} className={`flex-1 py-3 text-center font-bold uppercase text-xs tracking-wider flex items-center justify-center gap-2 ${viewMode === 'history' ? 'bg-white/10 text-white' : 'text-slate-500'}`}><History size={16}/> Últimos Títulos</button>
+                        </div>
+                        <div className="flex-1 p-4 overflow-y-auto no-scrollbar">
+                            {viewMode === 'history' ? (
+                                <div className="space-y-3">
+                                    {honors.map(h => (
+                                        <div key={h.id} className={`p-3 rounded-xl border flex items-center gap-3 relative group transition-all ${h.position === 'runner-up' ? 'bg-slate-800/50 border-white/5 grayscale-[0.5]' : 'bg-gradient-to-r from-slate-900 to-slate-800 border-white/10 hover:border-yellow-500/30'}`}>
+                                            <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shrink-0">{h.logo && <img src={h.logo} className="w-8 h-8 object-contain"/>}</div>
+                                            <div className="flex-1">
+                                                <div className={`font-bold text-[10px] uppercase tracking-wider ${h.position === 'runner-up' ? 'text-slate-400' : 'text-yellow-400'}`}>{h.title}</div>
+                                                <div className="text-white font-bold text-sm leading-tight">{h.brand} <span className="text-slate-400 font-normal text-xs">{h.model}</span></div>
+                                            </div>
+                                            <button onClick={(e) => deleteHonor(e, h.id)} className="p-2 text-slate-600 hover:text-red-400 relative z-50"><X size={16}/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <div className="grid grid-cols-12 text-[10px] text-slate-500 uppercase font-bold px-4 mb-2">
+                                        <div className="col-span-1">Pos</div>
+                                        <div className="col-span-7">Escudería</div>
+                                        <div className="col-span-2 text-center text-yellow-500">Copas</div>
+                                        <div className="col-span-2 text-center">Subs</div>
+                                    </div>
+                                    {rankingData.map((data, idx) => (
+                                        <div key={idx} onClick={() => setSelectedCarHistory(data)} className="grid grid-cols-12 items-center p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 cursor-pointer transition-colors group">
+                                            <div className="col-span-1"><div className={`w-6 h-6 flex items-center justify-center font-black rounded text-xs ${idx === 0 ? 'bg-yellow-500 text-black' : idx === 1 ? 'bg-slate-300 text-black' : idx === 2 ? 'bg-orange-700 text-white' : 'text-slate-500'}`}>{idx + 1}</div></div>
+                                            <div className="col-span-7 flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shrink-0">{data.car.logo && <img src={data.car.logo} className="w-5 h-5 object-contain"/>}</div>
+                                                <div><div className={`text-white font-black text-sm md:text-base leading-none ${headerFontClass}`}>{data.car.brand}</div><div className="text-xs text-blue-300 hidden md:block">{data.car.model}</div></div>
+                                            </div>
+                                            <div className="col-span-2 text-center"><div className="text-xl font-black text-yellow-500">{data.champions}</div></div>
+                                            <div className="col-span-2 text-center"><div className="text-lg font-bold text-slate-500 group-hover:text-white transition-colors">{data.runnerUps}</div></div>
+                                        </div>
+                                    ))}
+                                    {rankingData.length === 0 && <div className="text-center text-slate-500 py-10 italic">Nadie ha ganado copas aún.</div>}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // --- APP CONTAINER ---
+        // 5. DUELO CALLEJERO
+        const StreetCounter = ({ cars }) => {
+            const [session, setSession] = useState({ active: false, winner: null });
+            const [contestants, setContestants] = useState([]);
+            const [editingNames, setEditingNames] = useState(false);
+            const showToast = useToast();
+
+            useEffect(() => {
+                const unsubscribe = db.collection('street_race').doc('current').onSnapshot(doc => {
+                    if (doc.exists) { const data = doc.data(); setSession(data.session); setContestants(data.contestants); } 
+                    else { db.collection('street_race').doc('current').set({ session: { active: false, winner: null }, contestants: [ { id: 1, name: 'Auto A', count: 0, color: '#3b82f6', logo: null }, { id: 2, name: 'Auto B', count: 0, color: '#dc2626', logo: null } ] }); }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            const updateFirestore = (newContestants, newSession) => db.collection('street_race').doc('current').update({ contestants: newContestants, session: newSession || session });
+            const toggleSession = () => {
+                let newSession; let newContestants = [...contestants];
+                if (session.active) {
+                    const winner = contestants[0].count > contestants[1].count ? contestants[0] : contestants[1].count > contestants[0].count ? contestants[1] : { name: 'Empate' };
+                    newSession = { active: false, winner };
+                } else { newContestants = contestants.map(c => ({...c, count: 0})); newSession = { active: true, winner: null }; }
+                updateFirestore(newContestants, newSession);
+            };
+            const increment = (idx) => { if (!session.active) return; const newC = [...contestants]; newC[idx].count++; updateFirestore(newC, null); };
+            const updateName = (idx, val) => {
+                const newC = [...contestants]; newC[idx].name = val;
+                const foundCar = cars.find(c => c.brand.toLowerCase().includes(val.toLowerCase()) || c.model.toLowerCase().includes(val.toLowerCase()));
+                if (foundCar) { newC[idx].color = foundCar.color; newC[idx].logo = foundCar.logo; } 
+                else { newC[idx].color = idx === 0 ? '#3b82f6' : '#dc2626'; newC[idx].logo = null; }
+                updateFirestore(newC, null);
+            };
+
+            return (
+                <div className="w-full h-full flex flex-col items-center justify-start md:justify-center p-4 md:p-8 pt-10 md:pt-0 pb-24 overflow-y-auto">
+                    <div className="bg-slate-900/80 backdrop-blur-xl border border-white/20 p-6 md:p-8 rounded-3xl shadow-2xl max-w-4xl w-full text-center">
+                        <div className="mb-8"><h2 className={`text-2xl md:text-3xl text-white flex justify-center items-center gap-2 ${headerFontClass}`}><Users className="text-blue-500" /> Duelo Callejero</h2></div>
+                        <div className="flex flex-col md:flex-row gap-6 items-center justify-center mb-10">
+                            {contestants.map((contestant, idx) => (
+                            <div key={idx} className="flex-1 w-full group">
+                                <div className="h-10 flex items-center justify-center mb-2">{editingNames && !session.active ? ( <input value={contestant.name} onChange={e => updateName(idx, e.target.value)} className="bg-slate-800 text-white text-center p-2 rounded w-full border border-blue-500/50"/> ) : ( <h3 className={`text-2xl md:text-3xl text-white ${headerFontClass} truncate max-w-[200px]`}>{contestant.name}</h3> )}</div>
+                                <button onClick={() => increment(idx)} disabled={!session.active} className={`w-full h-40 md:h-56 rounded-3xl flex items-center justify-center text-7xl md:text-9xl font-black transition-all transform duration-100 relative overflow-hidden border-4 ${session.active ? 'active:scale-95' : 'opacity-50 grayscale'}`} style={{ background: getCarGradient(contestant.color), borderColor: `${contestant.color}80`, color: 'white' }}>{contestant.logo && ( <div className="absolute inset-0 opacity-20 bg-no-repeat bg-center bg-contain" style={{backgroundImage: `url(${contestant.logo})`}}></div> )}<span className="relative z-10 drop-shadow-2xl">{contestant.count}</span></button>
+                            </div>
+                            ))}
+                        </div>
+                        {session.winner && !session.active && ( <div className="mb-6 p-4 bg-yellow-900/40 border border-yellow-500/50 rounded-xl animate-bounce-in"><div className={`text-3xl text-white ${headerFontClass}`}>Ganador: {session.winner.name}</div></div> )}
+                        <div className="flex flex-col md:flex-row justify-center gap-4">
+                            <button onClick={toggleSession} className={`px-8 py-4 rounded-xl font-bold text-lg w-full md:w-auto ${session.active ? 'bg-red-900/80 text-white border border-red-500' : 'bg-blue-600 text-white'}`}>{session.active ? 'FINALIZAR' : 'INICIAR CONTEO'}</button>
+                            {!session.active && ( <button onClick={() => setEditingNames(!editingNames)} className="p-4 bg-slate-800 text-white border border-slate-700 rounded-xl flex justify-center"><Edit3 /></button> )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- APP ROOT ---
         const MoonRacers = () => {
-            const [activeTab, setActiveTab] = useState('garage');
+            const [activeTab, setActiveTab] = useState('chrono'); 
             const [cars, setCars] = useState([]);
             const [loadingCars, setLoadingCars] = useState(true);
 
-            // Sincronizar autos de Firebase al cargar la app
             useEffect(() => {
-                const unsubscribe = db.collection('cars').onSnapshot(snapshot => {
-                    const fetchedCars = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    }));
-                    setCars(fetchedCars);
+                const unsubscribe = db.collection('cars').onSnapshot(snap => {
+                    setCars(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                     setLoadingCars(false);
                 });
                 return () => unsubscribe();
             }, []);
 
             return (
-                <div className="w-full h-screen bg-slate-950 font-sans text-slate-200 overflow-hidden flex flex-col">
-                    <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-[#0f172a] to-[#020617] z-0 pointer-events-none"></div>
-                    <nav className="relative z-50 h-24 bg-white/5 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-8 shadow-2xl">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-xl flex items-center justify-center transform -rotate-3 shadow-lg shadow-blue-500/20 border border-white/10"><CarIcon className="text-white w-7 h-7" /></div>
-                            <h1 className={`text-3xl text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-blue-200 ${headerFontClass} drop-shadow-sm`}>MOON<span className="text-blue-500">RACERS</span></h1>
+                <ToastProvider>
+                    <ModalProvider>
+                        <div className="w-full mobile-height bg-slate-950 font-sans text-slate-200 overflow-hidden flex flex-col">
+                            <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-[#0f172a] to-[#020617] z-0 pointer-events-none"></div>
+                            
+                            {/* Navbar: Scroll Horizontal en móvil */}
+                            <nav className="relative z-50 h-16 md:h-24 bg-white/5 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 md:px-8 shadow-2xl shrink-0">
+                                <div className="flex items-center gap-3 shrink-0 mr-4">
+                                    <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center transform -rotate-3"><CarIcon className="text-white w-5 h-5 md:w-6 md:h-6" /></div>
+                                    <h1 className={`text-xl md:text-3xl text-white ${headerFontClass} hidden xs:block`}>MOON<span className="text-blue-500">RACERS</span></h1>
+                                </div>
+                                <div className="flex bg-black/20 p-1 rounded-xl border border-white/5 backdrop-blur-md overflow-x-auto no-scrollbar max-w-[70vw] md:max-w-none">
+                                {[ { id: 'chrono', label: 'Torneo', icon: TimerIcon }, { id: 'copa', label: 'Copa', icon: Trophy }, { id: 'palmares', label: 'Palmarés', icon: Medal }, { id: 'garage', label: 'Garaje', icon: Target }, { id: 'street', label: 'Calle', icon: Users }, ].map(tab => (
+                                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-3 md:px-5 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'}`}>
+                                    <tab.icon size={16} /><span className={activeTab === tab.id ? 'block' : 'hidden md:block'}>{tab.label}</span>
+                                    </button>
+                                ))}
+                                </div>
+                            </nav>
+                            
+                            <main className="relative z-10 flex-1 overflow-hidden">
+                                {activeTab === 'chrono' && <TimeTrial cars={cars} />}
+                                {activeTab === 'copa' && <Tournament cars={cars} onSaveToPalmares={(c) => setActiveTab('palmares')} />}
+                                {activeTab === 'palmares' && <Palmares cars={cars} />}
+                                {activeTab === 'garage' && <Garage cars={cars} loading={loadingCars} />}
+                                {activeTab === 'street' && <StreetCounter cars={cars} />}
+                            </main>
                         </div>
-                        <div className="flex bg-black/20 p-1.5 rounded-2xl border border-white/5 backdrop-blur-md">
-                        {[ { id: 'garage', label: 'Garaje', icon: Target }, { id: 'copa', label: 'Copa', icon: Trophy }, { id: 'chrono', label: 'Torneo', icon: Timer }, { id: 'street', label: 'Calle', icon: Users }, ].map(tab => (
-                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25 scale-105' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-                            <tab.icon size={18} strokeWidth={2.5} /><span className="hidden md:block tracking-wide">{tab.label}</span>
-                            </button>
-                        ))}
-                        </div>
-                    </nav>
-                    <main className="relative z-10 flex-1 overflow-hidden">
-                        {activeTab === 'garage' && <Garage cars={cars} loading={loadingCars} />}
-                        {activeTab === 'copa' && <Tournament cars={cars} />}
-                        {activeTab === 'chrono' && <TimeTrial cars={cars} />}
-                        {activeTab === 'street' && <StreetCounter cars={cars} />}
-                    </main>
-                </div>
+                    </ModalProvider>
+                </ToastProvider>
             );
         };
 
